@@ -17,7 +17,7 @@
             typeof url === 'string' &&
             (url.includes('/message/ack') || url.includes('/mediastory/view') || url.includes('/message/typing'))) {
 
-            console.log('BetterFansly: 👻 Blocked Read Receipt (Fetch)');
+            console.log('BetterFansly: 👻 Blocked Receipt/Indicator (Fetch)');
             return new Response(JSON.stringify({ success: true }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }
@@ -37,7 +37,7 @@
             this._bf_url &&
             (this._bf_url.includes('/message/ack') || this._bf_url.includes('/mediastory/view') || this._bf_url.includes('/message/typing'))) {
 
-            console.log('BetterFansly: 👻 Blocked Read Receipt (XHR)');
+            console.log('BetterFansly: 👻 Blocked Receipt/Indicator (XHR)');
 
             // Fake success
             Object.defineProperty(this, 'readyState', { value: 4 });

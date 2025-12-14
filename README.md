@@ -21,7 +21,7 @@
 *   **Remote Themes:** Load CSS stylesheets dynamically from external URLs (e.g., GitHub Gists).
 
 ### Privacy & Filtering
-*   **Ghost Mode:** Read direct messages and view stories without sending "Seen" receipts to the creator.
+*   **Ghost Mode:** Read direct messages, type replies, and view stories without sending "Seen" or "Typing" receipts to the other user.
 *   **Keyword Muter:** Automatically hide posts from your feed that contain specific words or phrases.
 *   **Client-Side Processing:** All filtering happens locally on your machine; no data is sent to third parties.
 
