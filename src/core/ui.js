@@ -37,6 +37,12 @@ const UI = {
             GhostMode.injectInterceptor();
         }
 
+        if (localStorage.getItem('bf_translator_enabled') === 'true' && typeof Translator !== 'undefined') {
+            Translator.targetLang = localStorage.getItem('bf_translator_lang') || 'en';
+            Translator.enable();
+        }
+
+
         this.applyTheme();
     },
 
@@ -215,6 +221,26 @@ const UI = {
                 </div>
                 <input type="checkbox" class="bf-toggle" id="toggle-ghost" ${localStorage.getItem('bf_ghost_mode') === 'true' ? 'checked' : ''}>
             </div>
+
+            <!-- Translator Card -->
+            <div class="bf-plugin-card">
+                <div>
+                    <div style="font-weight:bold;">Chat Translator</div>
+                    <div style="font-size:12px; color:#aaa;">
+                        Adds translate buttons to feed, DMs, and input bar.
+                    </div>
+                    <!-- Language Selector -->
+                    <select id="translator-lang-select" class="bf-input" style="width: auto; margin-top: 5px; font-size: 11px; padding: 2px;">
+                        <option value="en">To English</option>
+                        <option value="es">To Spanish</option>
+                        <option value="fr">To French</option>
+                        <option value="de">To German</option>
+                        <option value="ja">To Japanese</option>
+                        <option value="ko">To Korean</option>
+                    </select>
+                </div>
+                <input type="checkbox" class="bf-toggle" id="toggle-translator" ${localStorage.getItem('bf_translator_enabled') === 'true' ? 'checked' : ''}>
+            </div>
         `;
 
         // Bind Toggle
@@ -242,6 +268,29 @@ const UI = {
             } else {
                 GhostMode.disable();
             }
+        };
+
+        // Translator Logic
+        const transToggle = document.getElementById('toggle-translator');
+        const transSelect = document.getElementById('translator-lang-select');
+
+        // Load saved language
+        const savedLang = localStorage.getItem('bf_translator_lang') || 'en';
+        transSelect.value = savedLang;
+        if (typeof Translator !== 'undefined') Translator.targetLang = savedLang;
+
+        transToggle.onchange = (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('bf_translator_enabled', enabled);
+            if (typeof Translator !== 'undefined') {
+                enabled ? Translator.enable() : Translator.disable();
+            }
+        };
+
+        transSelect.onchange = (e) => {
+            const val = e.target.value;
+            localStorage.setItem('bf_translator_lang', val);
+            if (typeof Translator !== 'undefined') Translator.targetLang = val;
         };
     },
 
