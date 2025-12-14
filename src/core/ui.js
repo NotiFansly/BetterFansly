@@ -7,7 +7,11 @@ const UI = {
     settings: {
         miniplayerEnabled: localStorage.getItem('bf_miniplayer_enabled') === 'true',
         customCSS: localStorage.getItem('bf_custom_css') || '',
-        remoteThemeUrl: localStorage.getItem('bf_theme_url') || ''
+        remoteThemeUrl: localStorage.getItem('bf_theme_url') || '',
+
+        themeMode: localStorage.getItem('bf_theme_mode') || 'custom',
+        themeFlavor: localStorage.getItem('bf_theme_flavor') || 'mocha',
+        themeAccent: localStorage.getItem('bf_theme_accent') || 'mauve',
     },
 
     // --- Initialization ---
@@ -37,22 +41,33 @@ const UI = {
         // cleanup old tags
         document.getElementById('bf-custom-css-tag')?.remove();
         document.getElementById('bf-remote-theme-tag')?.remove();
+        document.getElementById('bf-preset-theme-tag')?.remove();
 
-        // Inject Custom CSS
-        if (this.settings.customCSS) {
+        if (this.settings.themeMode !== 'custom' && window.BF_Themes && window.BF_Themes[this.settings.themeMode]) {
+            const theme = window.BF_Themes[this.settings.themeMode];
+            const css = theme.generateCSS(this.settings.themeFlavor, this.settings.themeAccent);
+
             const style = document.createElement('style');
-            style.id = 'bf-custom-css-tag';
-            style.textContent = this.settings.customCSS;
+            style.id = 'bf-preset-theme-tag';
+            style.textContent = css;
             document.head.appendChild(style);
         }
 
-        // Inject Remote Theme
-        if (this.settings.remoteThemeUrl) {
-            const link = document.createElement('link');
-            link.id = 'bf-remote-theme-tag';
-            link.rel = 'stylesheet';
-            link.href = this.settings.remoteThemeUrl;
-            document.head.appendChild(link);
+        // Inject Custom CSS
+        else {
+            if (this.settings.customCSS) {
+                const style = document.createElement('style');
+                style.id = 'bf-custom-css-tag';
+                style.textContent = this.settings.customCSS;
+                document.head.appendChild(style);
+            }
+            if (this.settings.remoteThemeUrl) {
+                const link = document.createElement('link');
+                link.id = 'bf-remote-theme-tag';
+                link.rel = 'stylesheet';
+                link.href = this.settings.remoteThemeUrl;
+                document.head.appendChild(link);
+            }
         }
     },
 
@@ -205,37 +220,106 @@ const UI = {
     // --- Tab: Themes ---
 
     renderThemesTab(container) {
+        // Get Registered Themes
+        const themes = window.BF_Themes || {};
+        const themeOptions = Object.keys(themes).map(key =>
+            `<option value="${key}">${themes[key].name}</option>`
+        ).join('');
+
         container.innerHTML = `
-            < div class="bf-section-title" > Appearance</div >
-            <div class="bf-description">Customize the look and feel using CSS.</div>
-
-            <div style="margin-bottom: 20px;">
-                <label style="font-weight:bold; display:block; margin-bottom:5px;">Remote Theme URL</label>
-                <div style="font-size:11px; color:#aaa; margin-bottom:5px;">Link to a raw CSS file (GitHub/Pastebin).</div>
-                <input type="text" class="bf-input" id="theme-url-input" placeholder="https://..." value="${this.settings.remoteThemeUrl}">
+            <div class="bf-section-title">Appearance</div>
+            
+            <div class="bf-plugin-card" style="display:block;">
+                <label style="font-weight:bold;">Theme Mode</label>
+                <select id="theme-mode-select" class="bf-input" style="margin-top:5px;">
+                    <option value="custom">Custom (CSS / URL)</option>
+                    ${themeOptions}
+                </select>
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <label style="font-weight:bold; display:block; margin-bottom:5px;">Custom CSS</label>
-                <textarea class="bf-input" id="custom-css-input" rows="10" placeholder="/* Put your custom CSS here */\nbody { font-family: 'Comic Sans MS'; }">${this.settings.customCSS}</textarea>
+            <!-- PRESET CONTROLS (Dynamic) -->
+            <div id="preset-controls" style="display:none; margin-top:20px;">
+                <div class="bf-plugin-card" style="display:block;">
+                    <div style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:12px;">Flavor / Variant</label>
+                        <select id="theme-flavor" class="bf-input"></select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; font-size:12px;">Accent Color</label>
+                        <select id="theme-accent" class="bf-input"></select>
+                    </div>
+                </div>
             </div>
 
-            <button class="bf-btn" id="save-theme-btn">Save & Apply</button>
+            <!-- CUSTOM CONTROLS -->
+            <div id="custom-controls" style="display:none; margin-top:20px;">
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Remote Theme URL</label>
+                    <input type="text" class="bf-input" id="theme-url-input" placeholder="https://..." value="${this.settings.remoteThemeUrl}">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Custom CSS</label>
+                    <textarea class="bf-input" id="custom-css-input" rows="10">${this.settings.customCSS}</textarea>
+                </div>
+            </div>
+
+            <button class="bf-btn" id="save-theme-btn" style="margin-top:20px; width:100%;">Save & Apply</button>
         `;
 
+        const modeSelect = document.getElementById('theme-mode-select');
+        const presetControls = document.getElementById('preset-controls');
+        const customControls = document.getElementById('custom-controls');
+        const flavorSelect = document.getElementById('theme-flavor');
+        const accentSelect = document.getElementById('theme-accent');
+
+        modeSelect.value = this.settings.themeMode;
+
+        // Function to populate dropdowns based on selected theme
+        const updateDropdowns = () => {
+            const selectedTheme = themes[modeSelect.value];
+            if (selectedTheme) {
+                // Populate Flavors
+                flavorSelect.innerHTML = selectedTheme.options.flavors.map(f =>
+                    `<option value="${f}">${f.charAt(0).toUpperCase() + f.slice(1)}</option>`
+                ).join('');
+                flavorSelect.value = this.settings.themeFlavor; // Restore saved selection if valid
+
+                // Populate Accents
+                accentSelect.innerHTML = selectedTheme.options.accents.map(a =>
+                    `<option value="${a}">${a.charAt(0).toUpperCase() + a.slice(1)}</option>`
+                ).join('');
+                accentSelect.value = this.settings.themeAccent;
+
+                presetControls.style.display = 'block';
+                customControls.style.display = 'none';
+            } else {
+                presetControls.style.display = 'none';
+                customControls.style.display = 'block';
+            }
+        };
+
+        modeSelect.onchange = updateDropdowns;
+        updateDropdowns(); // Init
+
+        // Save Handler
         document.getElementById('save-theme-btn').onclick = () => {
-            const url = document.getElementById('theme-url-input').value;
-            const css = document.getElementById('custom-css-input').value;
+            this.settings.themeMode = modeSelect.value;
 
-            this.settings.remoteThemeUrl = url;
-            this.settings.customCSS = css;
+            if (this.settings.themeMode === 'custom') {
+                this.settings.remoteThemeUrl = document.getElementById('theme-url-input').value;
+                this.settings.customCSS = document.getElementById('custom-css-input').value;
+                localStorage.setItem('bf_theme_url', this.settings.remoteThemeUrl);
+                localStorage.setItem('bf_custom_css', this.settings.customCSS);
+            } else {
+                this.settings.themeFlavor = flavorSelect.value;
+                this.settings.themeAccent = accentSelect.value;
+                localStorage.setItem('bf_theme_flavor', this.settings.themeFlavor);
+                localStorage.setItem('bf_theme_accent', this.settings.themeAccent);
+            }
 
-            localStorage.setItem('bf_theme_url', url);
-            localStorage.setItem('bf_custom_css', css);
-
+            localStorage.setItem('bf_theme_mode', this.settings.themeMode);
             this.applyTheme();
 
-            // Visual feedback
             const btn = document.getElementById('save-theme-btn');
             btn.innerText = 'Saved!';
             setTimeout(() => btn.innerText = 'Save & Apply', 2000);
@@ -244,7 +328,7 @@ const UI = {
 
     renderDataTab(container) {
         container.innerHTML = `
-            < div class="bf-section-title" > Account Backup & Migration</div >
+            <div class="bf-section-title"> Account Backup & Migration </div >
             <div class="bf-description">Export your followed creators to a file, or import them to a new account.</div>
 
             <!-- EXPORT SECTION -->
@@ -584,7 +668,7 @@ const UI = {
 
     async renderLibraryTab(container) {
         container.innerHTML = `
-    < div class="bf-section-title" > Plugin Library</div >
+    <div class="bf-section-title"> Plugin Library </div>
             <div class="bf-description">
                 <i class="fas fa-triangle-exclamation" style="color:#fab387"></i> 
                 Warning: Only install scripts from sources you trust. Malicious scripts can steal your account.
