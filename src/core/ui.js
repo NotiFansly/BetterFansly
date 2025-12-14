@@ -78,6 +78,7 @@ const UI = {
 
                     <div class="bf-sidebar-label" style="color:#6c7086; font-size:11px; font-weight:bold; margin:15px 0 5px 10px; text-transform:uppercase;">Tools</div>
                     <button class="bf-tab-btn" data-tab="data">Backup & Migration</button>
+                    <button class="bf-tab-btn" data-tab="spending">Spending Tracker</button>
                     
                     <div class="bf-sidebar-label" style="color:#6c7086; font-size:11px; font-weight:bold; margin:15px 0 5px 10px; text-transform:uppercase;">Advanced</div>
                     <button class="bf-tab-btn" data-tab="library">Library</button>
@@ -137,6 +138,9 @@ const UI = {
                 break;
             case 'data':
                 this.renderDataTab(container);
+                break;
+            case 'spending':
+                this.renderSpendingTab(container);
                 break;
             default:
                 container.innerHTML = '<div>Tab not found</div>';
@@ -353,6 +357,129 @@ const UI = {
                 }
             };
             reader.readAsText(file);
+        };
+    },
+
+    renderSpendingTab(container) {
+        container.innerHTML = `
+            <div class="bf-section-title">Spending Tracker</div>
+            <div class="bf-description">Analyze your purchase history across all creators.</div>
+
+            <div class="bf-plugin-card" style="display:block; text-align:center; padding: 40px;">
+                <i class="fas fa-chart-pie" style="font-size: 40px; color: #a855f7; margin-bottom: 20px;"></i>
+                <div style="margin-bottom: 20px;">
+                    Click below to scan your transaction history.<br>
+                    <span style="font-size:12px; color:#aaa;">(This scans local API data, nothing is sent to external servers)</span>
+                </div>
+                <button class="bf-btn" id="btn-scan-spending">Scan History</button>
+                <div id="spending-status" style="margin-top:15px; color:#a855f7; font-size:13px;"></div>
+            </div>
+
+            <!-- Results Container (Hidden initially) -->
+            <div id="spending-results" style="display:none; animation: fadeIn 0.5s;">
+                
+                <!-- KPI Cards -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <div style="background:#111; padding:15px; border-radius:8px; border:1px solid #333; text-align:center;">
+                        <div style="font-size:12px; color:#aaa;">Total Spent</div>
+                        <div id="kpi-total" style="font-size:24px; font-weight:bold; color:#a855f7;">$0.00</div>
+                    </div>
+                    <div style="background:#111; padding:15px; border-radius:8px; border:1px solid #333; text-align:center;">
+                        <div style="font-size:12px; color:#aaa;">Transactions</div>
+                        <div id="kpi-count" style="font-size:24px; font-weight:bold; color:#fff;">0</div>
+                    </div>
+                </div>
+
+                <div style="background:#111; padding:10px; border-radius:8px; border:1px solid #333; margin-bottom:20px; text-align:center; font-size:12px; color:#ccc;">
+                    Timeline: <span id="kpi-timeline" style="color:#fff; font-weight:bold;">-</span>
+                </div>
+
+                <!-- Top Creators List -->
+                <div class="bf-section-title" style="font-size:14px;">Top Creators</div>
+                <div id="top-creators-list" style="max-height: 300px; overflow-y: auto; background:#111; border:1px solid #333; border-radius:8px; margin-bottom:20px;">
+                    <!-- List items injected here -->
+                </div>
+
+                <!-- Yearly Breakdown -->
+                <div class="bf-section-title" style="font-size:14px;">Yearly Breakdown</div>
+                <div id="year-breakdown" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+            </div>
+        `;
+
+        document.getElementById('btn-scan-spending').onclick = async () => {
+            const btn = document.getElementById('btn-scan-spending');
+            const status = document.getElementById('spending-status');
+            const results = document.getElementById('spending-results');
+
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            results.style.display = 'none';
+
+            try {
+                const data = await SpendingTracker.analyzeSpending((msg) => {
+                    status.innerText = msg;
+                });
+
+                if (!data) {
+                    status.innerText = "No payment history found.";
+                    return;
+                }
+
+                // Render Results
+                document.getElementById('kpi-total').innerText = SpendingTracker.formatMoney(data.total);
+                document.getElementById('kpi-count').innerText = data.count;
+                document.getElementById('kpi-timeline').innerText = `${SpendingTracker.formatDate(data.firstDate)} — ${SpendingTracker.formatDate(data.lastDate)}`;
+
+                // Render Top Creators
+                const list = document.getElementById('top-creators-list');
+                list.innerHTML = '';
+                data.byAccount.forEach((acc, index) => {
+                    const row = document.createElement('div');
+                    row.style.padding = '10px';
+                    row.style.borderBottom = '1px solid #222';
+                    row.style.display = 'flex';
+                    row.style.justifyContent = 'space-between';
+
+                    // Simple "Bar Chart" background effect
+                    const percent = (acc.total / data.total) * 100;
+                    row.style.background = `linear-gradient(90deg, rgba(168, 85, 247, 0.1) ${percent}%, transparent ${percent}%)`;
+
+                    row.innerHTML = `
+                        <div>
+                            <span style="color:#aaa; font-size:11px; margin-right:8px;">#${index + 1}</span>
+                            <span style="font-weight:bold;">@${acc.name}</span>
+                        </div>
+                        <div style="font-family:monospace;">${SpendingTracker.formatMoney(acc.total)}</div>
+                    `;
+                    list.appendChild(row);
+                });
+
+                // Render Years
+                const yearsContainer = document.getElementById('year-breakdown');
+                yearsContainer.innerHTML = '';
+                Object.entries(data.byYear).forEach(([year, cents]) => {
+                    const tag = document.createElement('div');
+                    tag.style.background = '#1e1e2e';
+                    tag.style.padding = '8px 12px';
+                    tag.style.borderRadius = '6px';
+                    tag.style.border = '1px solid #444';
+                    tag.innerHTML = `
+                        <div style="font-size:11px; color:#aaa;">${year}</div>
+                        <div style="font-weight:bold; color:#a855f7;">${SpendingTracker.formatMoney(cents / 100)}</div>
+                    `;
+                    yearsContainer.appendChild(tag);
+                });
+
+                status.innerText = "";
+                results.style.display = 'block';
+
+            } catch (e) {
+                status.innerText = "Error: " + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.innerText = "Re-Scan";
+            }
         };
     },
 
