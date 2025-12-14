@@ -59,6 +59,7 @@ const UI = {
     // --- Main UI Renderer ---
 
     openMenu() {
+        const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
         if (document.getElementById('bf-backdrop')) return;
 
         // 1. Create Backdrop
@@ -72,7 +73,7 @@ const UI = {
                 <!-- SIDEBAR -->
                 <div class="bf-sidebar">
                     <div class="bf-sidebar-header">
-                        <i class="fa-fw fas fa-robot" style="color: #a855f7;"></i>
+                        <img src="${logoUrl}" style="width: 32px; height: 32px; margin-right: 10px;">
                         <span>BetterFansly</span>
                     </div>
                     

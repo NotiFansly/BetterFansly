@@ -10,18 +10,32 @@ function createSettingsButton(isSidebar) {
     div.tabIndex = 0;
     div.id = isSidebar ? 'better-fansly-btn-sidebar' : 'better-fansly-btn';
 
-    const iconClass = isSidebar ? 'fa-fw fal hover-effect fa-robot' : 'fa-fw margin-right-text fal fa-robot';
+    if (!isSidebar) {
+        div.style.cssText = 'display: flex; align-items: center; width: 100%;';
+    }
+
+    const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
+
+    const imgStyle = isSidebar
+        ? 'width: 20px; height: 20px; margin-right: 10px; object-fit: contain; transform: scale(1.5);'
+        : 'width: 20px; height: 20px; margin-right: 12px; object-fit: contain; transform: scale(1.5);';
 
     div.innerHTML = `
-        <i class="${iconClass}" style="color: #a855f7;"></i>
+        <img src="${logoUrl}" style="${imgStyle}" alt="BF">
         <span>BetterFansly</span>
-        ${!isSidebar ? '<div class="flex-1"></div><div class="flex-0 margin-right-1 margin-left-1"><i class="fa-light fa-chevron-right"></i></div>' : ''}
+        
+        ${!isSidebar ? `
+            <div style="flex: 1;"></div> <!-- Spacer pushes arrow to the right -->
+            <div class="flex-0 margin-right-1 margin-left-1">
+                <i class="fa-light fa-chevron-right"></i>
+            </div>
+        ` : ''}
     `;
 
     div.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        UI.openMenu(); // Call the UI module
+        UI.openMenu();
     };
     return div;
 }

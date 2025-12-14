@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "1.4.3",
+    "version": "1.4.8",
     "permissions": [
         "storage",
         "userScripts",
@@ -29,6 +29,16 @@
                 "src/styles/main.css"
             ],
             "run_at": "document_end"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "icons/bf-logo.png"
+            ],
+            "matches": [
+                "https://fansly.com/*"
+            ]
         }
     ]
 }
