@@ -24,6 +24,10 @@ const UI = {
             MutualIndicator.enable();
         }
 
+        if (typeof KeywordMuter !== 'undefined') {
+            KeywordMuter.enable();
+        }
+
         this.applyTheme();
     },
 
@@ -79,6 +83,7 @@ const UI = {
                     <div class="bf-sidebar-label" style="color:#6c7086; font-size:11px; font-weight:bold; margin:15px 0 5px 10px; text-transform:uppercase;">Tools</div>
                     <button class="bf-tab-btn" data-tab="data">Backup & Migration</button>
                     <button class="bf-tab-btn" data-tab="spending">Spending Tracker</button>
+                    <button class="bf-tab-btn" data-tab="filters">Filters</button>
                     
                     <div class="bf-sidebar-label" style="color:#6c7086; font-size:11px; font-weight:bold; margin:15px 0 5px 10px; text-transform:uppercase;">Advanced</div>
                     <button class="bf-tab-btn" data-tab="library">Library</button>
@@ -141,6 +146,9 @@ const UI = {
                 break;
             case 'spending':
                 this.renderSpendingTab(container);
+                break;
+            case 'filters':
+                this.renderFiltersTab(container);
                 break;
             default:
                 container.innerHTML = '<div>Tab not found</div>';
@@ -481,6 +489,94 @@ const UI = {
                 btn.innerText = "Re-Scan";
             }
         };
+    },
+
+    renderFiltersTab(container) {
+        container.innerHTML = `
+            <div class="bf-section-title">Keyword Muter</div>
+            <div class="bf-description">Hide posts that contain specific words or phrases.</div>
+
+            <div class="bf-plugin-card" style="display:block;">
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <input type="text" id="mute-input" class="bf-input" placeholder="Enter keyword (e.g. 'feet')" style="margin:0;">
+                    <button class="bf-btn" id="mute-add-btn" style="margin:0;">Add</button>
+                </div>
+                
+                <div style="font-size:12px; font-weight:bold; margin-bottom:10px;">Active Muted Words:</div>
+                
+                <div id="mute-list" style="display:flex; flex-wrap:wrap; gap:8px; min-height:50px; background:#111; padding:10px; border-radius:6px; align-items: flex-start;"></div>
+            </div>
+        `;
+
+        const renderList = () => {
+            const list = document.getElementById('mute-list');
+            list.innerHTML = '';
+            const keywords = KeywordMuter.keywords || [];
+
+            if (keywords.length === 0) {
+                list.innerHTML = '<span style="color:#555; font-style:italic; padding: 5px;">No keywords added.</span>';
+                return;
+            }
+
+            keywords.forEach((word, idx) => {
+                const tag = document.createElement('div');
+
+                Object.assign(tag.style, {
+                    background: '#f38ba8', // Red/Pink
+                    color: '#1e1e2e',      // Dark Text
+                    padding: '6px 12px',   // More horizontal padding
+                    borderRadius: '20px',  // Fully rounded pill
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',       // Align text and X icon
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'transform 0.1s',
+                    userSelect: 'none'
+                });
+
+                tag.title = 'Click to remove';
+                tag.innerHTML = `
+                    <span>${word}</span>
+                    <i class="fas fa-times" style="font-size: 11px; opacity: 0.7;"></i>
+                `;
+
+                // Hover effect
+                tag.onmouseover = () => tag.style.opacity = '0.9';
+                tag.onmouseout = () => tag.style.opacity = '1';
+
+                tag.onclick = () => {
+                    keywords.splice(idx, 1);
+                    KeywordMuter.updateKeywords(keywords);
+                    renderList();
+                };
+                list.appendChild(tag);
+            });
+        };
+
+        document.getElementById('mute-add-btn').onclick = () => {
+            const input = document.getElementById('mute-input');
+            const word = input.value.trim();
+            if (word) {
+                const current = KeywordMuter.keywords || [];
+                // Prevent empty or duplicate words
+                if (!current.some(w => w.toLowerCase() === word.toLowerCase())) {
+                    current.push(word);
+                    KeywordMuter.updateKeywords(current);
+                    if (!KeywordMuter.isActive) KeywordMuter.enable();
+                }
+                input.value = '';
+                renderList();
+            }
+        };
+
+        // Allow pressing "Enter" to add
+        document.getElementById('mute-input').onkeypress = (e) => {
+            if (e.key === 'Enter') document.getElementById('mute-add-btn').click();
+        };
+
+        renderList();
     },
 
     // --- Tab: Library (Custom Plugins) ---
