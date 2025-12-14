@@ -52,6 +52,17 @@ window.BF_Themes['catppuccin'] = {
         }
     },
 
+    shouldUseDarkText: function(flavorName, accentName) {
+        // Light accents that need dark text
+        const lightAccents = ['rosewater', 'flamingo', 'pink', 'yellow', 'peach', 'green', 'teal', 'sky'];
+
+        // Latte (light mode) needs dark text on ALL accents
+        if (flavorName === 'latte') return true;
+
+        // Dark modes: only light accents need dark text
+        return lightAccents.includes(accentName);
+    },
+
     generateCSS: function(flavorName, accentName) {
         if (!flavorName) flavorName = 'mocha';
         if (!accentName) accentName = 'mauve';
@@ -157,6 +168,15 @@ window.BF_Themes['catppuccin'] = {
             /* 5. Active Tab/Link color */
             .router-link-active, .active-link {
                 color: ${accent} !important;
+            }
+            
+            app-chat-room-goal .progress-overlay {
+                background-color: ${accent} !important;
+            }
+            
+            /* Force dark text on light accents for readability */
+            app-chat-room-goal {
+                color: ${this.shouldUseDarkText(flavorName, accentName) ? C.base : C.text} !important;
             }
         `;
     }

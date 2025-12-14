@@ -103,6 +103,9 @@ const UI = {
                     
                     <div class="bf-sidebar-label" style="color:#6c7086; font-size:11px; font-weight:bold; margin:15px 0 5px 10px; text-transform:uppercase;">Advanced</div>
                     <button class="bf-tab-btn" data-tab="library">Library</button>
+
+                    <div style="margin-top: 10px; border-top: 1px solid #313244; margin-bottom: 10px;"></div>
+                    <button class="bf-tab-btn" data-tab="about"><i class="fas fa-info-circle"></i> About</button>
                     
                     <div style="flex:1"></div>
                     <button class="bf-tab-btn" id="bf-close-btn" style="color: #f38ba8;">
@@ -165,6 +168,9 @@ const UI = {
                 break;
             case 'filters':
                 this.renderFiltersTab(container);
+                break;
+            case 'about':
+                this.renderAboutTab(container);
                 break;
             default:
                 container.innerHTML = '<div>Tab not found</div>';
@@ -763,5 +769,41 @@ const UI = {
                 this.refreshLibraryList(); // refresh UI
             };
         });
+    },
+
+    renderAboutTab(container) {
+        const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
+        const manifest = chrome.runtime.getManifest();
+
+        container.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+                
+                <img src="${logoUrl}" style="width: 80px; height: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5));">
+                
+                <div style="font-size: 32px; font-weight: bold; background: linear-gradient(45deg, #a855f7, #f5c2e7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    BetterFansly
+                </div>
+                
+                <div style="color: #6c7086; margin-top: 5px; font-family: monospace;">v${manifest.version}</div>
+
+                <div style="margin-top: 30px; max-width: 400px; color: #cdd6f4; line-height: 1.6;">
+                    A power-user client modification for Fansly. <br>
+                    Enhancing the experience with themes, utilities, and privacy tools.
+                </div>
+
+                <div style="margin-top: 40px; display: flex; gap: 15px;">
+                    <a href="https://github.com/BetterFansly" target="_blank" class="bf-btn" style="text-decoration: none; background: #181825; border: 1px solid #313244;">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                    <a href="#" class="bf-btn" style="text-decoration: none; background: #181825; border: 1px solid #313244;" onclick="alert('Join the Discord (Placeholder)'); return false;">
+                        <i class="fab fa-discord"></i> Discord
+                    </a>
+                </div>
+
+                <div style="margin-top: auto; padding-bottom: 10px; font-size: 11px; color: #45475a;">
+                    Not affiliated with Fansly. Use at your own risk.
+                </div>
+            </div>
+        `;
     }
 };

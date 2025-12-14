@@ -5,6 +5,7 @@ const Miniplayer = {
     container: null,
     hls: null,
     isTransparent: false,
+    urlObserver: null,
 
     // Default state: Bottom-Right corner
     state: {
@@ -22,9 +23,11 @@ const Miniplayer = {
         if (this.isActive) return;
         this.isActive = true;
 
-        this.loadState(); // Load position from memory
+        this.loadState();
         this.injectStyles();
-        this.addStartButton();
+
+        // Start watching the URL to only show button on /live/ pages
+        this.startUrlWatcher();
 
         console.log("BetterFansly: Miniplayer Enabled");
     },
@@ -33,8 +36,8 @@ const Miniplayer = {
         if (!this.isActive) return;
         this.isActive = false;
 
-        const btn = document.getElementById('fansly-miniplayer-btn');
-        if (btn) btn.remove();
+        this.removeStartButton();
+        this.stopUrlWatcher();
 
         if (this.hls) {
             this.hls.destroy();
@@ -49,13 +52,12 @@ const Miniplayer = {
         console.log("BetterFansly: Miniplayer Disabled");
     },
 
-    // --- State Management (Persistence) ---
+    // --- State Management ---
 
     loadState() {
         try {
             const saved = localStorage.getItem('bf_miniplayer_state');
             if (saved) {
-                // Merge saved state with defaults
                 this.state = { ...this.state, ...JSON.parse(saved) };
             }
         } catch (e) { console.error('BF: Error loading state', e); }
@@ -63,24 +65,20 @@ const Miniplayer = {
 
     saveState() {
         if (!this.container) return;
-
         const rect = this.container.getBoundingClientRect();
-
-        // We save the absolute position relative to the viewport
         const newState = {
             top: rect.top + 'px',
             left: rect.left + 'px',
-            bottom: 'auto', // Explicitly unset bottom/right to prevent conflicts
+            bottom: 'auto',
             right: 'auto',
             width: rect.width + 'px',
             height: rect.height + 'px'
         };
-
-        this.state = newState; // Update local memory
+        this.state = newState;
         localStorage.setItem('bf_miniplayer_state', JSON.stringify(newState));
     },
 
-    // --- Visuals ---
+    // --- Visuals & Routing ---
 
     injectStyles() {
         if (document.getElementById('bf-miniplayer-css')) return;
@@ -90,13 +88,19 @@ const Miniplayer = {
             /* Start Button */
             #fansly-miniplayer-btn {
                 position: fixed; bottom: 20px; right: 20px; z-index: 9999;
-                background: linear-gradient(45deg, #a855f7, #7c3aed);
-                color: white; border: none; padding: 12px 18px; border-radius: 30px;
+                
+                /* THEME INTEGRATION FIX */
+                background: var(--accent-color, #a855f7); /* Use Theme Accent */
+                color: var(--primary-bg, #000);           /* Use Dark Background for Text Contrast */
+                
+                border: 1px solid var(--border-color, transparent);
+                padding: 12px 18px; border-radius: 30px;
                 cursor: pointer; font-weight: bold; 
                 box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-                transition: transform 0.2s;
+                transition: transform 0.2s, opacity 0.2s;
+                font-family: inherit;
             }
-            #fansly-miniplayer-btn:hover { transform: translateY(-2px); }
+            #fansly-miniplayer-btn:hover { transform: translateY(-2px); opacity: 0.9; }
 
             /* Player Container */
             #fansly-miniplayer-container {
@@ -112,42 +116,64 @@ const Miniplayer = {
                 position: absolute; top: 0; left: 0; width: 100%; height: 40px;
                 background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px);
                 display: flex; align-items: center; justify-content: space-between;
-                padding: 0 8px 0 12px; /* Adjusted padding */
+                padding: 0 8px 0 12px;
                 box-sizing: border-box;
                 opacity: 0; transition: opacity 0.2s; cursor: move; z-index: 2;
-                border-radius: 8px 8px 0 0; /* Match container corners */
+                border-radius: 8px 8px 0 0;
             }
             #fansly-miniplayer-container:hover #fansly-miniplayer-header { opacity: 1; }
 
-            /* Header Content */
             .fmp-title {
                 color: #fff; font-size: 13px; font-weight: 600;
                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
                 margin-right: 10px; pointer-events: none;
             }
-
-            .fmp-controls { 
-                display: flex; gap: 8px; align-items: center; 
-                flex-shrink: 0; /* Prevents buttons from squishing */
-            }
-
+            .fmp-controls { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
             .fmp-btn { 
                 background: #333; color: #ccc; border: 1px solid #555; 
-                border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; 
-                white-space: nowrap;
+                border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; white-space: nowrap;
             }
             .fmp-btn:hover { background: #555; color: white; }
             .fmp-close { background: #d32f2f; color: white; border: none; }
             .fmp-close:hover { background: #b91c1c; }
-            
             .fmp-select { 
                 background: #222; color: white; border: 1px solid #444; 
                 border-radius: 4px; padding: 3px; font-size: 11px; 
             }
-            
             #fansly-miniplayer-video { width: 100%; height: 100%; object-fit: contain; background: black; }
         `;
         document.head.appendChild(style);
+    },
+
+    startUrlWatcher() {
+        // Initial Check
+        this.checkRoute();
+
+        // Fansly is an SPA, so we observe the body for changes.
+        // If the URL changes, check if we need the button.
+        this.urlObserver = new MutationObserver(() => {
+            this.checkRoute();
+        });
+
+        this.urlObserver.observe(document.body, { childList: true, subtree: true });
+    },
+
+    stopUrlWatcher() {
+        if (this.urlObserver) {
+            this.urlObserver.disconnect();
+            this.urlObserver = null;
+        }
+    },
+
+    checkRoute() {
+        // Only show on /live/ pages
+        const isLivePage = window.location.pathname.includes('/live/');
+
+        if (isLivePage) {
+            this.addStartButton();
+        } else {
+            this.removeStartButton();
+        }
     },
 
     addStartButton() {
@@ -157,6 +183,11 @@ const Miniplayer = {
         btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
         btn.onclick = () => this.startPlayer();
         document.body.appendChild(btn);
+    },
+
+    removeStartButton() {
+        const btn = document.getElementById('fansly-miniplayer-btn');
+        if (btn) btn.remove();
     },
 
     // --- API Logic ---
@@ -173,7 +204,6 @@ const Miniplayer = {
         const token = this.getAuthToken();
         const headers = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = token;
-
         const response = await fetch(url, { method: "GET", headers });
         return await response.json();
     },
@@ -185,12 +215,10 @@ const Miniplayer = {
         let username = null;
         if (pathParts.includes('live') && pathParts.length > 2) {
             username = pathParts[pathParts.indexOf('live') + 1];
-        } else if (pathParts.length === 2 && pathParts[1]) {
-            username = pathParts[1];
         }
 
-        if (!username || ['settings', 'messages', 'notifications'].includes(username)) {
-            alert('BetterFansly: Please navigate to a Creator Profile or Stream first.');
+        if (!username) {
+            alert('BetterFansly: Could not detect username. Are you on a live page?');
             return;
         }
 
@@ -212,6 +240,9 @@ const Miniplayer = {
 
             const playbackUrl = streamRes.response.stream.playbackUrl;
             this.buildPlayerUI(playbackUrl, username);
+
+            // Optional: Hide the button once playing to reduce clutter?
+            // For now, reset text
             if (btn) btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
 
         } catch (e) {
@@ -230,7 +261,7 @@ const Miniplayer = {
         this.container = document.createElement('div');
         this.container.id = 'fansly-miniplayer-container';
 
-        // APPLY STATE: Forcefully set properties to ensure persistence works
+        // Apply State
         this.container.style.width = this.state.width;
         this.container.style.height = this.state.height;
         this.container.style.top = this.state.top;
@@ -249,7 +280,7 @@ const Miniplayer = {
         const controls = document.createElement('div');
         controls.className = 'fmp-controls';
 
-        // Quality
+        // Quality Select
         const qualitySelect = document.createElement('select');
         qualitySelect.className = 'fmp-select';
         qualitySelect.innerHTML = '<option value="-1">Auto</option>';
@@ -261,7 +292,6 @@ const Miniplayer = {
         const opacityBtn = document.createElement('button');
         opacityBtn.className = 'fmp-btn';
         opacityBtn.innerText = '👻';
-        opacityBtn.title = "Ghost Mode (Transparency)";
         opacityBtn.onclick = () => {
             this.isTransparent = !this.isTransparent;
             this.container.style.opacity = this.isTransparent ? '0.6' : '1';
@@ -271,7 +301,6 @@ const Miniplayer = {
         const pipBtn = document.createElement('button');
         pipBtn.className = 'fmp-btn';
         pipBtn.innerText = 'PopOut';
-        pipBtn.title = "Picture in Picture";
         pipBtn.onclick = async () => {
             const v = document.getElementById('fansly-miniplayer-video');
             if (document.pictureInPictureElement) await document.exitPictureInPicture();
@@ -281,7 +310,7 @@ const Miniplayer = {
         // Close
         const closeBtn = document.createElement('button');
         closeBtn.className = 'fmp-btn fmp-close';
-        closeBtn.innerText = '✕'; // Using standard UTF8 X
+        closeBtn.innerText = '✕';
         closeBtn.onclick = () => {
             if (this.hls) this.hls.destroy();
             this.container.remove();
@@ -299,13 +328,9 @@ const Miniplayer = {
         this.container.append(header, video);
         document.body.appendChild(this.container);
 
-        // Events
         this.makeDraggable(this.container, header);
-
-        // IMPORTANT: Save state when drag ends (mouseup) to ensure persistence
         this.container.addEventListener('mouseup', () => this.saveState());
 
-        // Init HLS
         if (window.Hls && Hls.isSupported()) {
             this.hls = new Hls();
             this.hls.loadSource(url);
@@ -332,7 +357,6 @@ const Miniplayer = {
     makeDraggable(elmnt, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         handle.onmousedown = dragMouseDown;
-
         const self = this;
 
         function dragMouseDown(e) {
@@ -350,8 +374,6 @@ const Miniplayer = {
             pos2 = pos4 - e.clientY;
             pos3 = e.clientX;
             pos4 = e.clientY;
-
-            // Set position
             elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
             elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
             elmnt.style.bottom = 'auto';
@@ -361,7 +383,7 @@ const Miniplayer = {
         function closeDragElement() {
             document.onmouseup = null;
             document.onmousemove = null;
-            self.saveState(); // Trigger save on drag end
+            self.saveState();
         }
     }
 };
