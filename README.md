@@ -1,9 +1,15 @@
-# BetterFansly
+<div align="center">
+  <img src="icons/betterfansly-full-logo.png" alt="BetterFansly Logo" width="500" />
 
-**A power-user client modification for Fansly.**
-*Part of the [NotiFansly](https://notifansly.xyz) Ecosystem.*
+  # BetterFansly
 
-BetterFansly injects into the web interface to enhance your experience with robust theming, privacy features, analytics, and quality-of-life utilities.
+  **A power-user client modification for Fansly.**<br>
+  *Part of the [NotiFansly](https://notifansly.xyz) Ecosystem.*
+
+  <p>
+    BetterFansly injects into the web interface to enhance your experience with robust theming, privacy features, analytics, and quality-of-life utilities.
+  </p>
+</div>
 
 ---
 
