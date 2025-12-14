@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "1.8.7",
+    "version": "1.8.8",
     "description": "Power-user client modification for Fansly with themes, utilities, and privacy tools",
     "background": {
         "service_worker": "src/background.js"
@@ -37,6 +37,7 @@
                 "src/plugins/ghostMode.js",
                 "src/plugins/translator.js",
                 "src/data/catppuccin.js",
+                "src/data/dracula.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
             ],
