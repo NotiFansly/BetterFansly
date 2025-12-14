@@ -121,7 +121,9 @@ window.BF_Themes['catppuccin'] = {
             /* --- GLOBAL OVERRIDES --- */
 
             /* Force Body Background */
-            html, body, .page-content {
+            html, body, .page-content,
+            html.dark-theme, .dark-theme body,
+            html.bright-theme, .bright-theme body {
                 background-color: ${C.base} !important;
                 color: ${C.text} !important;
             }

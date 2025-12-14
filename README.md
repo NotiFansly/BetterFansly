@@ -16,7 +16,7 @@
 ## Features
 
 ### Customization & Themes
-*   **Catppuccin Integration:** Built-in support for all 4 flavors (Latte, Frappé, Macchiato, Mocha) with 14 selectable accent colors.
+*   **Theme Presets:** Built-in support for **Catppuccin** (all 4 flavors) and **Dracula**, complete with customizable accent colors.
 *   **Theme Engine:** Force dark/light modes or inject your own custom CSS.
 *   **Remote Themes:** Load CSS stylesheets dynamically from external URLs (e.g., GitHub Gists).
 
@@ -54,7 +54,7 @@
 
 1.  Click the **BetterFansly** button in the sidebar (mobile/desktop) or the main Settings list.
 2.  **Plugins Tab:** Toggle features like Ghost Mode, Translator, Miniplayer, or Mutual Indicator on/off.
-3.  **Themes Tab:** Select a Catppuccin preset or paste your own CSS.
+3.  **Themes Tab:** Select a preset (Catppuccin or Dracula) or paste your own CSS.
 4.  **Tools Tab:** Access the Spending Tracker and Backup utilities.
 
 ---
