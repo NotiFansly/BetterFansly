@@ -26,6 +26,7 @@
 *   **Client-Side Processing:** All filtering happens locally on your machine; no data is sent to third parties.
 
 ### Tools & Utilities
+*   **Chat Translator:** Native translation integration for DMs and Feed posts. Translate incoming content with one click, and instantly translate your outgoing messages to your selected language (supports English, Spanish, French, German, Russian, Chinese, Japanese, and Korean).
 *   **Stream Miniplayer:** A persistent, draggable Picture-in-Picture video player. Watch streams or videos while browsing other pages. Includes transparency mode and auto-quality selection.
 *   **Spending Tracker:** Visualize your spending habits. View total spend, a leaderboard of your top supported creators, and a yearly breakdown.
 *   **Mutual Indicator:** Displays a "Follows You" badge next to usernames in the feed, comments, and profile headers.
@@ -52,7 +53,7 @@
 ## Usage
 
 1.  Click the **BetterFansly** button in the sidebar (mobile/desktop) or the main Settings list.
-2.  **Plugins Tab:** Toggle features like Ghost Mode, Miniplayer, or Mutual Indicator on/off.
+2.  **Plugins Tab:** Toggle features like Ghost Mode, Translator, Miniplayer, or Mutual Indicator on/off.
 3.  **Themes Tab:** Select a Catppuccin preset or paste your own CSS.
 4.  **Tools Tab:** Access the Spending Tracker and Backup utilities.
 
