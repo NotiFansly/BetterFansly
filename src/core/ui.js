@@ -235,6 +235,8 @@ const UI = {
                         <option value="es">To Spanish</option>
                         <option value="fr">To French</option>
                         <option value="de">To German</option>
+                        <option value="ru">To Russian</option>
+                        <option value="zh-CN">To Chinese (Simplified)</option>
                         <option value="ja">To Japanese</option>
                         <option value="ko">To Korean</option>
                     </select>
