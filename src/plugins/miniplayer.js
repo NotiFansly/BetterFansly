@@ -14,7 +14,8 @@ const Miniplayer = {
         bottom: '80px',
         right: '20px',
         width: '480px',
-        height: '270px'
+        height: '270px',
+        volume: 0.5
     },
 
     // --- Main Public Methods ---
@@ -66,13 +67,16 @@ const Miniplayer = {
     saveState() {
         if (!this.container) return;
         const rect = this.container.getBoundingClientRect();
+        const video = document.getElementById('fansly-miniplayer-video')
+
         const newState = {
             top: rect.top + 'px',
             left: rect.left + 'px',
             bottom: 'auto',
             right: 'auto',
             width: rect.width + 'px',
-            height: rect.height + 'px'
+            height: rect.height + 'px',
+            volume: video ? video.volume : this.state.volume
         };
         this.state = newState;
         localStorage.setItem('bf_miniplayer_state', JSON.stringify(newState));
@@ -324,6 +328,12 @@ const Miniplayer = {
         video.id = 'fansly-miniplayer-video';
         video.controls = true;
         video.autoplay = true;
+        video.volume = this.state.volume;
+
+        video.addEventListener('volumechange', () => {
+            this.state.volume = video.volume;
+            this.saveState();
+        });
 
         this.container.append(header, video);
         document.body.appendChild(this.container);
