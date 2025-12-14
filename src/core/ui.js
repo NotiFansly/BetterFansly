@@ -32,6 +32,11 @@ const UI = {
             KeywordMuter.enable();
         }
 
+        if (typeof GhostMode !== 'undefined') {
+            // We inject it once, the script internally checks the toggle status
+            GhostMode.injectInterceptor();
+        }
+
         this.applyTheme();
     },
 
@@ -201,6 +206,15 @@ const UI = {
                 </div>
                 <input type="checkbox" class="bf-toggle" id="toggle-mutual" ${localStorage.getItem('bf_mutual_enabled') === 'true' ? 'checked' : ''}>
             </div>
+
+            <!-- Ghost Mode (NEW) -->
+            <div class="bf-plugin-card">
+                <div>
+                    <div style="font-weight:bold;">Ghost Mode 👻</div>
+                    <div style="font-size:12px; color:#aaa;">Read messages without sending "Seen" receipts.</div>
+                </div>
+                <input type="checkbox" class="bf-toggle" id="toggle-ghost" ${localStorage.getItem('bf_ghost_mode') === 'true' ? 'checked' : ''}>
+            </div>
         `;
 
         // Bind Toggle
@@ -219,6 +233,14 @@ const UI = {
             localStorage.setItem('bf_mutual_enabled', enabled);
             if (typeof MutualIndicator !== 'undefined') {
                 enabled ? MutualIndicator.enable() : MutualIndicator.disable();
+            }
+        };
+
+        document.getElementById('toggle-ghost').onchange = (e) => {
+            if (e.target.checked) {
+                GhostMode.enable();
+            } else {
+                GhostMode.disable();
             }
         };
     },

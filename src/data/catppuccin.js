@@ -160,8 +160,8 @@ window.BF_Themes['catppuccin'] = {
             }
 
             /* 4. Notification Badge */
-            .notification-badge {
-                background-color: ${C.red} !important; /* Keep badges red? or use ${accent} */
+            .notification-badge, .badge {
+                background-color: ${accent} !important; /* Keep badges red? or use ${accent} */
                 color: ${C.base} !important;
             }
             

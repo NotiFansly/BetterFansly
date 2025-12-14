@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "1.5.8",
+    "version": "1.6.2",
     "description": "Power-user client modification for Fansly with themes, utilities, and privacy tools",
     "icons": {
         "16": "icons/bf-logo.png",
@@ -29,6 +29,7 @@
                 "src/plugins/mutualIndicator.js",
                 "src/plugins/spendingTracker.js",
                 "src/plugins/keywordMuter.js",
+                "src/plugins/ghostMode.js",
                 "src/data/catppuccin.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
@@ -42,7 +43,8 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "icons/bf-logo.png"
+                "icons/bf-logo.png",
+                "src/injections/interceptor.js"
             ],
             "matches": [
                 "https://fansly.com/*"
