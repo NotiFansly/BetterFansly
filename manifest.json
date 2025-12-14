@@ -1,8 +1,11 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "1.6.5",
+    "version": "1.7.0",
     "description": "Power-user client modification for Fansly with themes, utilities, and privacy tools",
+    "background": {
+        "service_worker": "src/background.js"
+    },
     "icons": {
         "16": "icons/bf-logo.png",
         "32": "icons/bf-logo.png",
@@ -12,6 +15,8 @@
     "permissions": [
         "storage",
         "userScripts",
+        "scripting",
+        "webNavigation",
         "activeTab"
     ],
     "host_permissions": [

@@ -761,30 +761,30 @@ const UI = {
         plugins.forEach((p, index) => {
             const card = document.createElement('div');
             card.className = 'bf-plugin-card';
+
+            // Fixed HTML syntax errors (removed spaces inside tags like < div)
             card.innerHTML = `
-    < div style = "flex:1; padding-right:10px;" >
+                <div style="flex:1; padding-right:10px;">
                     <div style="font-weight:bold;">${p.name}</div>
                     <div style="font-size:10px; color:#6c7086; font-family:monospace;">ID: ${p.id}</div>
-                </div >
-    <div style="display:flex; align-items:center; gap:10px;">
-        <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
-            <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;">
-                <i class="fas fa-trash"></i>
-            </button>
-    </div>
-`;
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
+                    <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
             listContainer.appendChild(card);
 
-            // Toggle Logic
-            card.querySelector(`#toggle - ${p.id} `).onchange = async (e) => {
+            card.querySelector(`#toggle-${p.id}`).onchange = async (e) => {
                 plugins[index].enabled = e.target.checked;
                 await chrome.storage.local.set({ bf_plugins: plugins });
                 chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
             };
 
-            // Delete Logic
-            card.querySelector(`#del - ${p.id} `).onclick = async () => {
-                if (!confirm(`Delete plugin "${p.name}" ? `)) return;
+            card.querySelector(`#del-${p.id}`).onclick = async () => {
+                if (!confirm(`Delete plugin "${p.name}"?`)) return;
                 plugins.splice(index, 1); // remove from array
                 await chrome.storage.local.set({ bf_plugins: plugins });
                 chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
