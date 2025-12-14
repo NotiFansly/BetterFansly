@@ -42,6 +42,10 @@ const UI = {
             Translator.enable();
         }
 
+        if (localStorage.getItem('bf_oneko_enabled') === 'true' && typeof Oneko !== 'undefined') {
+            Oneko.enable();
+        }
+
 
         this.applyTheme();
     },
@@ -243,6 +247,17 @@ const UI = {
                 </div>
                 <input type="checkbox" class="bf-toggle" id="toggle-translator" ${localStorage.getItem('bf_translator_enabled') === 'true' ? 'checked' : ''}>
             </div>
+
+            <!-- Oneko Plugin -->
+            <div class="bf-plugin-card">
+                <div>
+                    <div style="font-weight:bold;">Oneko 🐈</div>
+                    <div style="font-size:12px; color:#aaa;">
+                        Adds a retro desktop cat that chases your cursor.
+                    </div>
+                </div>
+                <input type="checkbox" class="bf-toggle" id="toggle-oneko" ${localStorage.getItem('bf_oneko_enabled') === 'true' ? 'checked' : ''}>
+            </div>
         `;
 
         // Bind Toggle
@@ -269,6 +284,14 @@ const UI = {
                 GhostMode.enable();
             } else {
                 GhostMode.disable();
+            }
+        };
+
+        document.getElementById('toggle-oneko').onchange = (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('bf_oneko_enabled', enabled);
+            if (typeof Oneko !== 'undefined') {
+                enabled ? Oneko.enable() : Oneko.disable();
             }
         };
 
