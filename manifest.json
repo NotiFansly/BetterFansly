@@ -1,0 +1,31 @@
+{
+    "manifest_version": 3,
+    "name": "BetterFansly",
+    "version": "1.1.0",
+    "permissions": [
+        "storage",
+        "userScripts",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "https://fansly.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://fansly.com/*"
+            ],
+            "js": [
+                "src/libs/hls.min.js",
+                "src/plugins/miniplayer.js",
+                "src/plugins/backupTool.js",
+                "src/core/ui.js",
+                "src/core/injector.js"
+            ],
+            "css": [
+                "src/styles/main.css"
+            ],
+            "run_at": "document_end"
+        }
+    ]
+}
