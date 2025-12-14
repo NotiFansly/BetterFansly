@@ -798,31 +798,47 @@ const UI = {
         const manifest = chrome.runtime.getManifest();
 
         container.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 20px;">
                 
-                <img src="${logoUrl}" style="width: 80px; height: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5));">
+                <!-- Main Logo -->
+                <img src="${logoUrl}" style="width: 80px; height: 80px; margin-bottom: 15px; filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.4));">
                 
                 <div style="font-size: 32px; font-weight: bold; background: linear-gradient(45deg, #a855f7, #f5c2e7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                     BetterFansly
                 </div>
                 
-                <div style="color: #6c7086; margin-top: 5px; font-family: monospace;">v${manifest.version}</div>
-
-                <div style="margin-top: 30px; max-width: 400px; color: #cdd6f4; line-height: 1.6;">
-                    A power-user client modification for Fansly. <br>
-                    Enhancing the experience with themes, utilities, and privacy tools.
+                <div style="color: #6c7086; margin-top: 5px; font-family: monospace; font-size: 12px;">
+                    v${manifest.version} — <span style="color: #a855f7;">A Notifansly Project</span>
                 </div>
 
-                <div style="margin-top: 40px; display: flex; gap: 15px;">
-                    <a href="https://github.com/BetterFansly" target="_blank" class="bf-btn" style="text-decoration: none; background: #181825; border: 1px solid #313244;">
-                        <i class="fab fa-github"></i> GitHub
-                    </a>
-                    <a href="#" class="bf-btn" style="text-decoration: none; background: #181825; border: 1px solid #313244;" onclick="alert('Join the Discord (Placeholder)'); return false;">
-                        <i class="fab fa-discord"></i> Discord
+                <div style="margin-top: 25px; max-width: 420px; color: #cdd6f4; line-height: 1.5; font-size: 14px;">
+                    Enhancing your Fansly experience with modular plugins, custom themes, and advanced privacy tools. 
+                </div>
+
+                <!-- Ecosystem Promotion Box -->
+                <div style="margin-top: 30px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 15px; border-radius: 12px; max-width: 450px;">
+                    <div style="font-weight: bold; color: #f5c2e7; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-robot"></i> Notifansly Discord Bot
+                    </div>
+                    <div style="font-size: 12px; color: #bac2de; margin-bottom: 10px;">
+                        Are you a creator? Sync Discord roles with your followers/subscribers and get instant live notifications.
+                    </div>
+                    <a href="https://notifansly.xyz" target="_blank" style="color: #a855f7; font-size: 12px; font-weight: bold; text-decoration: none; border-bottom: 1px dashed #a855f7;">
+                        Visit notifansly.xyz <i class="fas fa-external-link-alt" style="font-size: 10px;"></i>
                     </a>
                 </div>
 
-                <div style="margin-top: auto; padding-bottom: 10px; font-size: 11px; color: #45475a;">
+                <!-- Action Buttons -->
+                <div style="margin-top: 30px; display: flex; gap: 12px;">
+                    <a href="https://github.com/NotiFansly/BetterFansly" target="_blank" class="bf-btn" style="text-decoration: none; background: #181825; border: 1px solid #313244; display: flex; align-items: center; gap: 8px;">
+                        <i class="fab fa-github"></i> Source Code
+                    </a>
+                    <a href="https://discord.gg/WXr8Zd2Js7" class="bf-btn" style="text-decoration: none; background: #5865F2; border: none; display: flex; align-items: center; gap: 8px;" onclick="alert('Join the Discord (Placeholder)'); return false;">
+                        <i class="fab fa-discord"></i> Community
+                    </a>
+                </div>
+
+                <div style="margin-top: auto; padding-top: 20px; font-size: 10px; color: #45475a; letter-spacing: 0.5px;">
                     Not affiliated with Fansly. Use at your own risk.
                 </div>
             </div>
