@@ -2,7 +2,20 @@
 
 /* src/styles/main.css */
 
-/* 1. The Backdrop (Dims the site behind the menu) */
+:root {
+    /* Fallbacks for when no custom theme is active (Uses Fansly's native variables) */
+    --bf-modal-bg: var(--modal-bg, var(--dark-1));
+    --bf-sidebar-bg: var(--secondary-bg, var(--dark-2));
+    --bf-card-bg: var(--dark-3);
+    /* Darker than modal */
+    --bf-border: var(--border-color, var(--dark-4));
+    --bf-text: var(--font-1);
+    --bf-subtext: var(--font-tint-2);
+    --bf-accent: var(--accent-color, var(--blue-1));
+    --bf-hover: var(--dropdown-bg-color-hover, var(--white-2));
+}
+
+/* 1. The Backdrop */
 .bf-backdrop {
     position: fixed;
     top: 0;
@@ -11,7 +24,6 @@
     height: 100vh;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(5px);
-    /* The "Glass" blur effect */
     z-index: 99999;
     display: flex;
     justify-content: center;
@@ -23,30 +35,30 @@
 .bf-modal {
     width: 800px;
     height: 600px;
-    background: #1e1e2e;
-    /* Dark "Catppuccin" style base */
+    background: var(--bf-modal-bg);
+    color: var(--bf-text);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     display: flex;
     overflow: hidden;
-    border: 1px solid #313244;
+    border: 1px solid var(--bf-border);
 }
 
 /* 3. Sidebar (Left) */
 .bf-sidebar {
     width: 220px;
-    background: #181825;
+    background: var(--bf-sidebar-bg);
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 5px;
-    border-right: 1px solid #313244;
+    border-right: 1px solid var(--bf-border);
 }
 
 .bf-sidebar-header {
     font-size: 20px;
     font-weight: bold;
-    color: #cdd6f4;
+    color: var(--bf-text);
     margin-bottom: 20px;
     padding-left: 10px;
     display: flex;
@@ -54,10 +66,18 @@
     gap: 10px;
 }
 
+.bf-sidebar-label {
+    color: var(--bf-subtext);
+    font-size: 11px;
+    font-weight: bold;
+    margin: 10px 0 5px 10px;
+    text-transform: uppercase;
+}
+
 .bf-tab-btn {
     background: transparent;
     border: none;
-    color: #a6adc8;
+    color: var(--bf-subtext);
     padding: 10px 15px;
     text-align: left;
     cursor: pointer;
@@ -67,13 +87,15 @@
 }
 
 .bf-tab-btn:hover {
-    background: #313244;
-    color: #fff;
+    background: var(--bf-hover);
+    color: var(--bf-text);
 }
 
 .bf-tab-btn.active {
-    background: #45475a;
-    color: #fff;
+    background: var(--bf-accent);
+    /* Highlight active tab with accent */
+    color: var(--primary-bg, #fff);
+    /* Contrast text */
     font-weight: 600;
 }
 
@@ -82,40 +104,47 @@
     flex: 1;
     padding: 30px;
     overflow-y: auto;
-    color: #cdd6f4;
+    color: var(--bf-text);
+    background: var(--bf-modal-bg);
 }
 
 .bf-section-title {
     font-size: 18px;
     margin-bottom: 10px;
-    border-bottom: 1px solid #313244;
+    border-bottom: 1px solid var(--bf-border);
     padding-bottom: 5px;
+    color: var(--bf-text);
 }
 
 .bf-description {
-    color: #a6adc8;
+    color: var(--bf-subtext);
     font-size: 12px;
     margin-bottom: 20px;
 }
 
 /* 5. Plugin Cards */
 .bf-plugin-card {
-    background: #181825;
+    background: var(--bf-card-bg);
     padding: 15px;
     border-radius: 10px;
     margin-bottom: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid #313244;
+    border: 1px solid var(--bf-border);
+    transition: transform 0.2s;
 }
 
-/* 6. Toggle Switch (iOS Style) */
+.bf-plugin-card:hover {
+    border-color: var(--bf-accent);
+}
+
+/* 6. Toggle Switch */
 .bf-toggle {
     appearance: none;
     width: 40px;
     height: 22px;
-    background: #45475a;
+    background: var(--bf-border);
     border-radius: 20px;
     position: relative;
     cursor: pointer;
@@ -123,10 +152,9 @@
 }
 
 .bf-toggle:checked {
-    background: #a855f7;
+    background: var(--bf-accent);
 }
 
-/* Purple accent */
 .bf-toggle::after {
     content: '';
     position: absolute;
@@ -146,22 +174,33 @@
 /* Inputs */
 .bf-input {
     width: 100%;
-    background: #11111b;
-    border: 1px solid #45475a;
-    color: #fff;
+    background: var(--bf-card-bg);
+    border: 1px solid var(--bf-border);
+    color: var(--bf-text);
     padding: 8px;
     border-radius: 6px;
     margin-top: 5px;
 }
 
+.bf-input:focus {
+    border-color: var(--bf-accent);
+    outline: none;
+}
+
 .bf-btn {
-    background: #a855f7;
-    color: white;
+    background: var(--bf-accent);
+    color: var(--primary-bg, #fff);
     border: none;
     padding: 8px 16px;
     border-radius: 6px;
     cursor: pointer;
     margin-top: 10px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.bf-btn:hover {
+    opacity: 0.9;
 }
 
 @keyframes fadeIn {
@@ -174,4 +213,22 @@
         opacity: 1;
         transform: scale(1);
     }
+}
+
+/* Scrollbar styling for the modal */
+.bf-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.bf-content::-webkit-scrollbar-track {
+    background: var(--bf-modal-bg);
+}
+
+.bf-content::-webkit-scrollbar-thumb {
+    background: var(--bf-border);
+    border-radius: 4px;
+}
+
+.bf-content::-webkit-scrollbar-thumb:hover {
+    background: var(--bf-subtext);
 }
