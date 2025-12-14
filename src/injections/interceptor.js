@@ -15,7 +15,7 @@
         // Check if Ghost Mode is active in LocalStorage
         if (localStorage.getItem('bf_ghost_mode') === 'true' &&
             typeof url === 'string' &&
-            url.includes('/message/ack')) {
+            (url.includes('/message/ack') || url.includes('/mediastory/view'))) {
 
             console.log('BetterFansly: 👻 Blocked Read Receipt (Fetch)');
             return new Response(JSON.stringify({ success: true }), {
@@ -35,7 +35,7 @@
     window.XMLHttpRequest.prototype.send = function(body) {
         if (localStorage.getItem('bf_ghost_mode') === 'true' &&
             this._bf_url &&
-            this._bf_url.includes('/message/ack')) {
+            (this._bf_url.includes('/message/ack') || this._bf_url.includes('/mediastory/view'))) {
 
             console.log('BetterFansly: 👻 Blocked Read Receipt (XHR)');
 

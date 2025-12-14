@@ -211,7 +211,7 @@ const UI = {
             <div class="bf-plugin-card">
                 <div>
                     <div style="font-weight:bold;">Ghost Mode 👻</div>
-                    <div style="font-size:12px; color:#aaa;">Read messages without sending "Seen" receipts.</div>
+                    <div style="font-size:12px; color:#aaa;">Read messages and view stories without sending receipts.</div>
                 </div>
                 <input type="checkbox" class="bf-toggle" id="toggle-ghost" ${localStorage.getItem('bf_ghost_mode') === 'true' ? 'checked' : ''}>
             </div>
