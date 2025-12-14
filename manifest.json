@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "permissions": [
         "storage",
         "userScripts",
@@ -19,6 +19,7 @@
                 "src/libs/hls.min.js",
                 "src/plugins/miniplayer.js",
                 "src/plugins/backupTool.js",
+                "src/plugins/mutualIndicator.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
             ],

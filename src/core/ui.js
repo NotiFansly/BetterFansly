@@ -20,7 +20,10 @@ const UI = {
             Miniplayer.enable();
         }
 
-        // 2. Apply Visual Themes
+        if (localStorage.getItem('bf_mutual_enabled') === 'true' && typeof MutualIndicator !== 'undefined') {
+            MutualIndicator.enable();
+        }
+
         this.applyTheme();
     },
 
@@ -155,6 +158,15 @@ const UI = {
                 </div>
                 <input type="checkbox" class="bf-toggle" id="toggle-miniplayer" ${this.settings.miniplayerEnabled ? 'checked' : ''}>
             </div>
+
+            <!-- Mutual Indicator -->
+            <div class="bf-plugin-card">
+                <div>
+                    <div style="font-weight:bold;">Mutual Indicator</div>
+                    <div style="font-size:12px; color:#aaa;">Shows a "Follows You" badge next to usernames.</div>
+                </div>
+                <input type="checkbox" class="bf-toggle" id="toggle-mutual" ${localStorage.getItem('bf_mutual_enabled') === 'true' ? 'checked' : ''}>
+            </div>
         `;
 
         // Bind Toggle
@@ -166,13 +178,22 @@ const UI = {
                 e.target.checked ? Miniplayer.enable() : Miniplayer.disable();
             }
         };
+
+        // Bind Mutual Toggle
+        document.getElementById('toggle-mutual').onchange = (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('bf_mutual_enabled', enabled);
+            if (typeof MutualIndicator !== 'undefined') {
+                enabled ? MutualIndicator.enable() : MutualIndicator.disable();
+            }
+        };
     },
 
     // --- Tab: Themes ---
 
     renderThemesTab(container) {
         container.innerHTML = `
-            <div class="bf-section-title">Appearance</div>
+            < div class="bf-section-title" > Appearance</div >
             <div class="bf-description">Customize the look and feel using CSS.</div>
 
             <div style="margin-bottom: 20px;">
@@ -210,7 +231,7 @@ const UI = {
 
     renderDataTab(container) {
         container.innerHTML = `
-            <div class="bf-section-title">Account Backup & Migration</div>
+            < div class="bf-section-title" > Account Backup & Migration</div >
             <div class="bf-description">Export your followed creators to a file, or import them to a new account.</div>
 
             <!-- EXPORT SECTION -->
@@ -230,19 +251,19 @@ const UI = {
                 <div style="font-weight:bold; margin-bottom:5px;">Import Following List</div>
                 <div style="font-size:12px; color:#aaa; margin-bottom:15px;">
                     Restores follows from a JSON file. <br>
-                    <span style="color:#f38ba8;">Warning: This takes time (approx 1.5s per user) to avoid account bans.</span>
+                        <span style="color:#f38ba8;">Warning: This takes time (approx 1.5s per user) to avoid account bans.</span>
                 </div>
-                
+
                 <input type="file" id="import-file" accept=".json" style="background:#111; color:#fff; padding:5px; border-radius:4px; border:1px solid #444; width:100%;">
-                
-                <button class="bf-btn" id="btn-import" style="margin-top:10px; background:#45475a; cursor:not-allowed;" disabled>
-                    <i class="fas fa-upload"></i> Start Import
-                </button>
-                
-                <div id="import-progress" style="margin-top:10px; font-size:12px; color:#a855f7;"></div>
-                
-                <!-- Results Log -->
-                <textarea id="import-log" class="bf-input" rows="5" style="display:none; margin-top:10px; font-family:monospace; font-size:11px;" readonly></textarea>
+
+                    <button class="bf-btn" id="btn-import" style="margin-top:10px; background:#45475a; cursor:not-allowed;" disabled>
+                        <i class="fas fa-upload"></i> Start Import
+                    </button>
+
+                    <div id="import-progress" style="margin-top:10px; font-size:12px; color:#a855f7;"></div>
+
+                    <!-- Results Log -->
+                    <textarea id="import-log" class="bf-input" rows="5" style="display:none; margin-top:10px; font-family:monospace; font-size:11px;" readonly></textarea>
             </div>
         `;
 
@@ -267,7 +288,8 @@ const UI = {
                 a.download = `fansly_backup_${data.exported_by}_${Date.now()}.json`;
                 a.click();
 
-                status.innerText = `✅ Export Complete! (${data.accounts.length} accounts)`;
+                status.innerText = `✅ Export Complete!(${data.accounts.length
+                    } accounts)`;
             } catch (e) {
                 status.innerText = "❌ Error: " + e.message;
             } finally {
@@ -299,7 +321,7 @@ const UI = {
                     const json = JSON.parse(e.target.result);
                     if (!json.accounts || !Array.isArray(json.accounts)) throw new Error("Invalid Backup File");
 
-                    if (!confirm(`Ready to import ${json.accounts.length} accounts?\nThis will take about ${(json.accounts.length * 1.5 / 60).toFixed(1)} minutes.`)) return;
+                    if (!confirm(`Ready to import ${json.accounts.length} accounts ?\nThis will take about ${(json.accounts.length * 1.5 / 60).toFixed(1)} minutes.`)) return;
 
                     // UI Setup
                     importBtn.disabled = true;
@@ -315,10 +337,10 @@ const UI = {
                     });
 
                     // Final Report
-                    prog.innerText = `✅ Done! Success: ${result.success} | Failed: ${result.failed}`;
+                    prog.innerText = `✅ Done! Success: ${result.success} | Failed: ${result.failed} `;
 
-                    log.value += `\n--- REPORT ---\n`;
-                    log.value += `Total: ${result.total}\nSuccess: ${result.success}\nFailed: ${result.failed}\n`;
+                    log.value += `\n-- - REPORT-- -\n`;
+                    log.value += `Total: ${result.total} \nSuccess: ${result.success} \nFailed: ${result.failed} \n`;
                     if (result.errors.length > 0) {
                         log.value += "\nFailures:\n" + result.errors.join('\n');
                     }
@@ -338,7 +360,7 @@ const UI = {
 
     async renderLibraryTab(container) {
         container.innerHTML = `
-            <div class="bf-section-title">Plugin Library</div>
+    < div class="bf-section-title" > Plugin Library</div >
             <div class="bf-description">
                 <i class="fas fa-triangle-exclamation" style="color:#fab387"></i> 
                 Warning: Only install scripts from sources you trust. Malicious scripts can steal your account.
@@ -354,12 +376,12 @@ const UI = {
                 </div>
             </details>
 
-            <!-- List -->
+            <!--List -->
             <div class="bf-section-title" style="font-size:14px; margin-top:20px;">Installed Plugins</div>
             <div id="cp-list" style="display:flex; flex-direction:column; gap:10px;">
                 <div style="text-align:center; padding:20px; color:#aaa;">Loading...</div>
             </div>
-        `;
+`;
 
         // 1. Install Handler
         document.getElementById('cp-install-btn').onclick = async () => {
@@ -404,29 +426,29 @@ const UI = {
             const card = document.createElement('div');
             card.className = 'bf-plugin-card';
             card.innerHTML = `
-                <div style="flex:1; padding-right:10px;">
+    < div style = "flex:1; padding-right:10px;" >
                     <div style="font-weight:bold;">${p.name}</div>
                     <div style="font-size:10px; color:#6c7086; font-family:monospace;">ID: ${p.id}</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
-                    <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
+                </div >
+    <div style="display:flex; align-items:center; gap:10px;">
+        <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
+            <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;">
+                <i class="fas fa-trash"></i>
+            </button>
+    </div>
+`;
             listContainer.appendChild(card);
 
             // Toggle Logic
-            card.querySelector(`#toggle-${p.id}`).onchange = async (e) => {
+            card.querySelector(`#toggle - ${p.id} `).onchange = async (e) => {
                 plugins[index].enabled = e.target.checked;
                 await chrome.storage.local.set({ bf_plugins: plugins });
                 chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
             };
 
             // Delete Logic
-            card.querySelector(`#del-${p.id}`).onclick = async () => {
-                if (!confirm(`Delete plugin "${p.name}"?`)) return;
+            card.querySelector(`#del - ${p.id} `).onclick = async () => {
+                if (!confirm(`Delete plugin "${p.name}" ? `)) return;
                 plugins.splice(index, 1); // remove from array
                 await chrome.storage.local.set({ bf_plugins: plugins });
                 chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
