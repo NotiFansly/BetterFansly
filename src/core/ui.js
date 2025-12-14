@@ -499,7 +499,7 @@ const UI = {
 
             <div class="bf-plugin-card" style="display:block;">
                 <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <input type="text" id="mute-input" class="bf-input" placeholder="Enter keyword (e.g. 'feet')" style="margin:0;">
+                    <input type="text" id="mute-input" class="bf-input" placeholder="Enter keyword (e.g. 'anal')" style="margin:0;">
                     <button class="bf-btn" id="mute-add-btn" style="margin:0;">Add</button>
                 </div>
                 
