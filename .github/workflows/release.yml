@@ -1,0 +1,36 @@
+name: Build and Release Extension
+
+# Trigger the workflow only when you push a tag starting with 'v' (e.g. v1.0.0)
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Create Release Zip
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Create the Zip file (Excluding dev files)
+      - name: Zip Extension
+        run: |
+          zip -r BetterFansly.zip . -x "*.git*" "*.github*" "*.vscode*" ".gitignore" "*.DS_Store"
+
+      # 3. Create a GitHub Release and upload the Zip
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: BetterFansly.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
