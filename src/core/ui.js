@@ -706,7 +706,7 @@ const UI = {
             <details style="margin-bottom: 20px; background: #11111b; padding: 10px; border-radius: 8px;">
                 <summary style="cursor:pointer; font-weight:bold;">+ Add New Plugin</summary>
                 <div style="margin-top: 10px;">
-                    <input type="text" id="cp-name" class="bf-input" placeholder="Plugin Name (e.g. Media Downloader)">
+                    <input type="text" id="cp-name" class="bf-input" placeholder="Plugin Name">
                     <textarea id="cp-code" class="bf-input" rows="8" placeholder="// Paste JavaScript code here..."></textarea>
                     <button class="bf-btn" id="cp-install-btn">Install Plugin</button>
                 </div>
