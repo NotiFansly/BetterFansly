@@ -8,7 +8,6 @@ const KeywordMuter = {
     enable() {
         if (this.isActive) return;
         this.isActive = true;
-
         this.injectStyles();
 
         // Load saved keywords
@@ -18,7 +17,6 @@ const KeywordMuter = {
         if (this.keywords.length > 0) {
             this.startObserver();
             console.log("BetterFansly: Keyword Muter Enabled", this.keywords);
-            // Force a full scan on enable
             this.forceRescan();
         }
     },
@@ -29,9 +27,9 @@ const KeywordMuter = {
 
         if (this.observer) this.observer.disconnect();
 
-        // Unhide everything immediately
-        document.querySelectorAll('.bf-post-hidden').forEach(el => {
-            el.classList.remove('bf-post-hidden');
+        // Unhide everything
+        document.querySelectorAll('.bf-muted').forEach(el => {
+            el.classList.remove('bf-muted');
         });
 
         console.log("BetterFansly: Keyword Muter Disabled");
@@ -40,9 +38,6 @@ const KeywordMuter = {
     updateKeywords(newKeywords) {
         this.keywords = newKeywords;
         localStorage.setItem('bf_muted_keywords', JSON.stringify(this.keywords));
-
-        // KEY CHANGE: Force a re-scan of EVERYTHING when keywords change.
-        // This ensures that if you delete a keyword, the posts reappear.
         this.forceRescan();
     },
 
@@ -51,7 +46,7 @@ const KeywordMuter = {
         const style = document.createElement('style');
         style.id = 'bf-muter-css';
         style.textContent = `
-            .bf-post-hidden {
+            .bf-muted {
                 display: none !important;
             }
         `;
@@ -63,12 +58,11 @@ const KeywordMuter = {
             if (this.scanTimeout) clearTimeout(this.scanTimeout);
             this.scanTimeout = setTimeout(() => this.scanPage(), 300);
         });
-
         this.observer.observe(document.body, { childList: true, subtree: true });
     },
 
     forceRescan() {
-        // Remove the "checked" flag from all posts so they get re-evaluated
+        // Remove analyzed flags
         document.querySelectorAll('.bf-analyzed').forEach(el => {
             el.classList.remove('bf-analyzed');
         });
@@ -78,37 +72,53 @@ const KeywordMuter = {
     scanPage() {
         if (!this.isActive) return;
 
-        // Select all posts that haven't been analyzed since the last keyword update
+        // FEED POSTS: app-post elements
         const posts = document.querySelectorAll('app-post:not(.bf-analyzed)');
-
         posts.forEach(post => {
             post.classList.add('bf-analyzed');
 
-            // If no keywords, ensure we show the post and exit
             if (this.keywords.length === 0) {
-                post.classList.remove('bf-post-hidden');
+                post.classList.remove('bf-muted');
                 return;
             }
 
-            // Find the description text
             const descEl = post.querySelector('.feed-item-description');
-
-            // If no text, we assume it's safe (or just media)
             if (!descEl) return;
 
-            // CASE INSENSITIVITY: Convert everything to lowercase
             const text = descEl.textContent.toLowerCase();
-
-            // Check if any keyword matches
             const shouldHide = this.keywords.some(word => text.includes(word.toLowerCase()));
 
             if (shouldHide) {
-                post.classList.add('bf-post-hidden');
-                // console.log("BetterFansly: Hiding post");
+                post.classList.add('bf-muted');
             } else {
-                // IMPORTANT: Ensure it is visible if it doesn't match
-                // (This handles the case where you removed a keyword)
-                post.classList.remove('bf-post-hidden');
+                post.classList.remove('bf-muted');
+            }
+        });
+
+        // DM MESSAGES: app-group-message-collection elements
+        const messages = document.querySelectorAll('app-group-message-collection:not(.bf-analyzed)');
+        messages.forEach(message => {
+            message.classList.add('bf-analyzed');
+
+            if (this.keywords.length === 0) {
+                message.classList.remove('bf-muted');
+                return;
+            }
+
+            // Check message text content
+            const textEl = message.querySelector('.message-text');
+            if (!textEl) {
+                // No text content, don't hide
+                return;
+            }
+
+            const text = textEl.textContent.toLowerCase();
+            const shouldHide = this.keywords.some(word => text.includes(word.toLowerCase()));
+
+            if (shouldHide) {
+                message.classList.add('bf-muted');
+            } else {
+                message.classList.remove('bf-muted');
             }
         });
     }
