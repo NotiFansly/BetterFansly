@@ -690,36 +690,67 @@ const UI = {
         const manifest = chrome.runtime.getManifest();
 
         container.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 20px;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; text-align: center; padding: 20px;">
+                
+                <!-- Main Logo -->
                 <img src="${logoUrl}" style="width: 80px; height: 80px; margin-bottom: 15px; filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.4));">
-                <div style="font-size: 32px; font-weight: bold; background: linear-gradient(45deg, #a855f7, #f5c2e7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                
+                <div style="font-size: 32px; font-weight: bold; background: linear-gradient(45deg, var(--bf-accent), #f5c2e7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                     BetterFansly
                 </div>
+                
                 <div style="color: var(--bf-subtext); margin-top: 5px; font-family: monospace; font-size: 12px;">
-                    v${manifest.version} — <span style="color: #a855f7;">A Notifansly Project</span>
+                    v${manifest.version} — <span style="color: var(--bf-accent);">A Notifansly Project</span>
                 </div>
+
                 <div style="margin-top: 25px; max-width: 420px; color: var(--bf-text); line-height: 1.5; font-size: 14px;">
                     Enhancing your Fansly experience with modular plugins, custom themes, and advanced privacy tools. 
                 </div>
-                <div style="margin-top: 30px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 15px; border-radius: 12px; max-width: 450px;">
+
+                <!-- Ecosystem Promotion Box -->
+                <div style="margin-top: 25px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 15px; border-radius: 12px; max-width: 450px; width: 100%;">
                     <div style="font-weight: bold; color: #f5c2e7; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <i class="fas fa-robot"></i> Notifansly Discord Bot
                     </div>
-                    <div style="font-size: 12px; color: #bac2de; margin-bottom: 10px;">
+                    <div style="font-size: 12px; color: var(--bf-subtext); margin-bottom: 10px;">
                         Are you a creator? Sync Discord roles with your followers/subscribers and get instant live notifications.
                     </div>
-                    <a href="https://notifansly.xyz" target="_blank" style="color: #a855f7; font-size: 12px; font-weight: bold; text-decoration: none; border-bottom: 1px dashed #a855f7;">
+                    <a href="https://notifansly.xyz" target="_blank" style="color: var(--bf-accent); font-size: 12px; font-weight: bold; text-decoration: none; border-bottom: 1px dashed var(--bf-accent);">
                         Visit notifansly.xyz <i class="fas fa-external-link-alt" style="font-size: 10px;"></i>
                     </a>
                 </div>
-                <div style="margin-top: 30px; display: flex; gap: 12px;">
-                    <a href="https://github.com/NotiFansly/BetterFansly" target="_blank" class="bf-btn" style="text-decoration: none; background: var(--bf-card-bg); border: 1px solid var(--bf-border); display: flex; align-items: center; gap: 8px;">
+
+                <!-- Action Buttons -->
+                <div style="margin-top: 20px; display: flex; gap: 12px;">
+                    <a href="https://github.com/NotiFansly/BetterFansly" target="_blank" class="bf-btn" style="text-decoration: none; background: var(--bf-card-bg); border: 1px solid var(--bf-border); color: var(--bf-text); display: flex; align-items: center; gap: 8px; margin-top:0;">
                         <i class="fab fa-github"></i> Source Code
                     </a>
-                    <a href="https://discord.gg/WXr8Zd2Js7" class="bf-btn" style="text-decoration: none; background: #5865F2; border: none; display: flex; align-items: center; gap: 8px;" onclick="alert('Join the Discord (Placeholder)'); return false;">
+                    <a href="https://discord.gg/WXr8Zd2Js7" class="bf-btn" style="text-decoration: none; background: #5865F2; border: none; display: flex; align-items: center; gap: 8px; margin-top:0;">
                         <i class="fab fa-discord"></i> Community
                     </a>
                 </div>
+
+                <!-- Donation Section -->
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--bf-border); width: 100%; max-width: 450px;">
+                    <div style="font-size: 12px; font-weight: bold; color: var(--bf-subtext); text-transform: uppercase; margin-bottom: 15px;">
+                        Support Development
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                        <!-- Ko-fi Button -->
+                        <a href="https://ko-fi.com/notifansly" target="_blank" style="text-decoration: none;">
+                            <div style="background: #29abe0; color: white; padding: 8px 16px; border-radius: 4px; display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 14px; height: 38px; box-sizing: border-box; transition: transform 0.2s;">
+                                <i class="fas fa-coffee"></i> <span>Support the Ecosystem</span>
+                            </div>
+                        </a>
+
+                        <!-- OxaPay Button -->
+                        <a href="https://pay.oxapay.com/11901671" target="_blank" style="transition: transform 0.2s; display: block;">
+                            <img src="https://oxapay.com/donation-buttons/13.png" alt="OxaPay Donation Button" style="width: 160px; height: auto; display: block;" />
+                        </a>
+                    </div>
+                </div>
+
                 <div style="margin-top: auto; padding-top: 20px; font-size: 10px; color: var(--bf-subtext); letter-spacing: 0.5px;">
                     Not affiliated with Fansly. Use at your own risk.
                 </div>
