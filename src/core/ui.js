@@ -1,6 +1,7 @@
 // src/core/ui.js
 
 const UI = {
+    editingPluginId: null,
     // Local State for Synchronous Settings (Visuals/Toggles)
     settings: {
         miniplayerEnabled: localStorage.getItem('bf_miniplayer_enabled') === 'true',
@@ -16,6 +17,7 @@ const UI = {
 
     init() {
         console.log('BetterFansly: UI Initialized');
+
 
         // 1. Load Built-in Plugins
         if (this.settings.miniplayerEnabled && typeof Miniplayer !== 'undefined') {
@@ -608,15 +610,20 @@ const UI = {
             <div class="bf-section-title"> Plugin Library </div>
             <div class="bf-description">
                 <i class="fas fa-triangle-exclamation" style="color:#fab387"></i> 
-                Warning: Only install scripts from sources you trust. Malicious scripts can steal your account.
+                Warning: Only install scripts from sources you trust.
             </div>
 
-            <details style="margin-bottom: 20px; background: var(--bf-card-bg); padding: 10px; border-radius: 8px;">
-                <summary style="cursor:pointer; font-weight:bold;">+ Add New Plugin</summary>
+            <!-- Editor Section -->
+            <details id="cp-editor-details" open style="margin-bottom: 20px; background: var(--bf-card-bg); padding: 10px; border-radius: 8px;">
+                <summary style="cursor:pointer; font-weight:bold; outline:none;">+ Add / Edit Plugin</summary>
                 <div style="margin-top: 10px;">
                     <input type="text" id="cp-name" class="bf-input" placeholder="Plugin Name">
-                    <textarea id="cp-code" class="bf-input" rows="8" placeholder="// Paste JavaScript code here..."></textarea>
-                    <button class="bf-btn" id="cp-install-btn">Install Plugin</button>
+                    <textarea id="cp-code" class="bf-input" rows="8" placeholder="// Paste JavaScript code here..." style="font-family:monospace; font-size:11px; white-space:pre; overflow-x:auto;"></textarea>
+                    
+                    <div style="display:flex; gap: 10px; margin-top: 10px;">
+                        <button class="bf-btn" id="cp-save-btn" style="flex: 1;">Install Plugin</button>
+                        <button class="bf-btn" id="cp-cancel-btn" style="background: var(--bf-surface-0); color: var(--bf-subtext); border: 1px solid var(--bf-border); display: none;">Cancel</button>
+                    </div>
                 </div>
             </details>
 
@@ -626,21 +633,69 @@ const UI = {
             </div>
         `;
 
-        document.getElementById('cp-install-btn').onclick = async () => {
-            const name = document.getElementById('cp-name').value.trim();
-            const code = document.getElementById('cp-code').value.trim();
+        // --- SAVE / UPDATE HANDLER ---
+        document.getElementById('cp-save-btn').onclick = async () => {
+            const nameField = document.getElementById('cp-name');
+            const codeField = document.getElementById('cp-code');
+            const name = nameField.value.trim();
+            const code = codeField.value.trim();
+
             if (!name || !code) return alert("Name and Code are required.");
-            const newPlugin = { id: 'plugin_' + Date.now(), name, code, enabled: true };
+
             const data = await chrome.storage.local.get('bf_plugins');
             const plugins = data.bf_plugins || [];
-            plugins.push(newPlugin);
+
+            if (this.editingPluginId) {
+                // UPDATE EXISTING
+                const index = plugins.findIndex(p => p.id === this.editingPluginId);
+                if (index > -1) {
+                    plugins[index].name = name;
+                    plugins[index].code = code;
+                    // We keep 'enabled' and 'id' as they were
+                }
+            } else {
+                // CREATE NEW
+                const newPlugin = {
+                    id: 'plugin_' + Date.now(),
+                    name,
+                    code,
+                    enabled: true
+                };
+                plugins.push(newPlugin);
+            }
+
             await chrome.storage.local.set({ bf_plugins: plugins });
+
+            // Notify background to reload scripts
             chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
-            document.getElementById('cp-name').value = '';
-            document.getElementById('cp-code').value = '';
+
+            // Reset UI
+            this.resetEditor();
             this.refreshLibraryList();
         };
+
+        // --- CANCEL HANDLER ---
+        document.getElementById('cp-cancel-btn').onclick = () => {
+            this.resetEditor();
+        };
+
         this.refreshLibraryList();
+    },
+
+    resetEditor() {
+        this.editingPluginId = null;
+        document.getElementById('cp-name').value = '';
+        document.getElementById('cp-code').value = '';
+
+        const saveBtn = document.getElementById('cp-save-btn');
+        const cancelBtn = document.getElementById('cp-cancel-btn');
+
+        saveBtn.innerText = 'Install Plugin';
+        saveBtn.style.background = ''; // Reset color
+        cancelBtn.style.display = 'none';
+
+        // Optional: Close details after save
+        // document.getElementById('cp-editor-details').removeAttribute('open');
     },
 
     async refreshLibraryList() {
@@ -654,29 +709,81 @@ const UI = {
         }
 
         listContainer.innerHTML = '';
+
         plugins.forEach((p, index) => {
             const card = document.createElement('div');
             card.className = 'bf-plugin-card';
+
+            // Highlight card if it's currently being edited
+            if (this.editingPluginId === p.id) {
+                card.style.border = '1px solid var(--bf-accent)';
+                card.style.background = 'rgba(168, 85, 247, 0.05)';
+            }
+
             card.innerHTML = `
-                <div style="flex:1; padding-right:10px;">
-                    <div style="font-weight:bold;">${p.name}</div>
-                    <div style="font-size:10px; color:var(--bf-subtext); font-family:monospace;">ID: ${p.id}</div>
+                <div style="flex:1; padding-right:10px; overflow:hidden;">
+                    <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                    <div style="font-size:10px; color:var(--bf-subtext); font-family:monospace;">${p.code.length} bytes</div>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <!-- ENABLE TOGGLE -->
                     <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
+                    
+                    <!-- EDIT BUTTON -->
+                    <button class="bf-btn" id="edit-${p.id}" style="background:var(--bf-surface-2); color:var(--bf-text); padding:5px 10px; font-size:12px;">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+
+                    <!-- DELETE BUTTON -->
                     <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             `;
             listContainer.appendChild(card);
+
+            // Toggle Logic
             card.querySelector(`#toggle-${p.id}`).onchange = async (e) => {
                 plugins[index].enabled = e.target.checked;
                 await chrome.storage.local.set({ bf_plugins: plugins });
                 chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
             };
+
+            // Edit Logic
+            card.querySelector(`#edit-${p.id}`).onclick = () => {
+                this.editingPluginId = p.id;
+
+                // Populate inputs
+                document.getElementById('cp-name').value = p.name;
+                document.getElementById('cp-code').value = p.code;
+
+                // Open Editor if closed
+                document.getElementById('cp-editor-details').setAttribute('open', 'true');
+
+                // Update Buttons
+                const saveBtn = document.getElementById('cp-save-btn');
+                const cancelBtn = document.getElementById('cp-cancel-btn');
+
+                saveBtn.innerText = 'Save Changes';
+                saveBtn.style.background = 'var(--bf-accent)';
+                cancelBtn.style.display = 'block';
+
+                // Scroll to top
+                document.querySelector('.bf-content').scrollTop = 0;
+
+                // Refresh list to show highlight
+                this.refreshLibraryList();
+            };
+
+            // Delete Logic
             card.querySelector(`#del-${p.id}`).onclick = async () => {
                 if (!confirm(`Delete plugin "${p.name}"?`)) return;
+
+                // If we are deleting the one being edited, reset editor
+                if (this.editingPluginId === p.id) {
+                    this.resetEditor();
+                }
+
                 plugins.splice(index, 1);
                 await chrome.storage.local.set({ bf_plugins: plugins });
                 chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
