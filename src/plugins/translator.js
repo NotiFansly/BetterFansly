@@ -1,14 +1,151 @@
+// src/plugins/translator.js
+
 const Translator = {
+    // --- 1. Registry Metadata ---
+    id: 'translator',
+    name: 'Chat Translator',
+    description: 'Native translation for DMs, Feed posts, and the Input bar.',
+    defaultEnabled: false,
+
+    // --- 2. State Variables ---
     isActive: false,
     targetLang: 'en', // Default
     observer: null,
 
+    // --- 3. Language Configuration ---
+    languages: {
+        // European Languages
+        'en': 'English',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'pt-BR': 'Portuguese (Brazil)',
+        'nl': 'Dutch',
+        'pl': 'Polish',
+        'ru': 'Russian',
+        'uk': 'Ukrainian',
+        'cs': 'Czech',
+        'sv': 'Swedish',
+        'no': 'Norwegian',
+        'da': 'Danish',
+        'fi': 'Finnish',
+        'ro': 'Romanian',
+        'tr': 'Turkish',
+        'el': 'Greek',
+        'hu': 'Hungarian',
+        'bg': 'Bulgarian',
+        'hr': 'Croatian',
+        'sk': 'Slovak',
+
+        // Asian Languages
+        'zh-CN': 'Chinese (Simplified)',
+        'zh-TW': 'Chinese (Traditional)',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'th': 'Thai',
+        'vi': 'Vietnamese',
+        'id': 'Indonesian',
+        'ms': 'Malay',
+        'hi': 'Hindi',
+        'bn': 'Bengali',
+        'ta': 'Tamil',
+        'te': 'Telugu',
+        'ur': 'Urdu',
+
+        // Middle Eastern & African
+        'ar': 'Arabic',
+        'he': 'Hebrew',
+        'fa': 'Persian',
+        'sw': 'Swahili',
+
+        // Other Languages
+        'la': 'Latin',
+        'eo': 'Esperanto'
+    },
+
+    // --- 4. UI Renderer (Registry Pattern) ---
+    renderSettings() {
+        const container = document.createElement('div');
+        container.className = 'bf-plugin-card';
+
+        // Load Saved State
+        const isEnabled = localStorage.getItem(`bf_plugin_enabled_${this.id}`) === 'true';
+        const savedLang = localStorage.getItem('bf_translator_lang') || 'en';
+        this.targetLang = savedLang;
+
+        // Generate language options grouped by region
+        const generateOptions = () => {
+            const groups = {
+                'European': ['en', 'es', 'fr', 'de', 'it', 'pt', 'pt-BR', 'nl', 'pl', 'ru', 'uk', 'cs', 'sv', 'no', 'da', 'fi', 'ro', 'tr', 'el', 'hu', 'bg', 'hr', 'sk'],
+                'Asian': ['zh-CN', 'zh-TW', 'ja', 'ko', 'th', 'vi', 'id', 'ms', 'hi', 'bn', 'ta', 'te', 'ur'],
+                'Middle Eastern & African': ['ar', 'he', 'fa', 'sw'],
+                'Other': ['la', 'eo']
+            };
+
+            let html = '';
+            for (const [region, codes] of Object.entries(groups)) {
+                html += `<optgroup label="${region}">`;
+                codes.forEach(code => {
+                    html += `<option value="${code}">${this.languages[code]}</option>`;
+                });
+                html += '</optgroup>';
+            }
+            return html;
+        };
+
+        container.innerHTML = `
+            <div style="flex: 1;">
+                <div style="font-weight:bold;">${this.name}</div>
+                <div style="font-size:12px; color:var(--bf-subtext); margin-bottom: 8px;">
+                    ${this.description}
+                </div>
+                
+                <!-- Language Selector -->
+                <select id="translator-lang-select" class="bf-input" style="width: auto; font-size: 11px; padding: 4px;">
+                    ${generateOptions()}
+                </select>
+            </div>
+            <input type="checkbox" class="bf-toggle">
+        `;
+
+        // 1. Bind Language Select
+        const langSelect = container.querySelector('#translator-lang-select');
+        langSelect.value = savedLang;
+        langSelect.onchange = (e) => {
+            const val = e.target.value;
+            localStorage.setItem('bf_translator_lang', val);
+            this.setTargetLang(val);
+        };
+
+        // 2. Bind Toggle
+        const toggle = container.querySelector('.bf-toggle');
+        toggle.checked = isEnabled;
+        toggle.onchange = (e) => {
+            const active = e.target.checked;
+            localStorage.setItem(`bf_plugin_enabled_${this.id}`, active);
+            // Legacy key support
+            localStorage.setItem('bf_translator_enabled', active);
+
+            active ? this.enable() : this.disable();
+        };
+
+        return container;
+    },
+
+    // --- 5. Core Logic ---
+
     enable() {
         if (this.isActive) return;
         this.isActive = true;
+
+        // Load saved language preference
+        this.targetLang = localStorage.getItem('bf_translator_lang') || 'en';
+
         this.injectStyles();
         this.startObserver();
-        console.log("BetterFansly: Translator Enabled");
+        console.log(`BetterFansly: Translator Enabled (${this.languages[this.targetLang]})`);
     },
 
     disable() {
@@ -18,21 +155,22 @@ const Translator = {
 
         document.querySelectorAll('.bf-translate-btn, .bf-translator-result').forEach(el => el.remove());
         document.querySelectorAll('.bf-translated-input-btn').forEach(el => el.remove());
+        console.log("BetterFansly: Translator Disabled");
     },
 
-    // --- NEW: Handle Live Language Switching ---
+    // --- Handle Live Language Switching ---
     setTargetLang(newLang) {
         this.targetLang = newLang;
 
         // Update the Tooltip on the Input Bar
         const inputBtn = document.querySelector('.bf-translated-input-btn');
         if (inputBtn) {
-            inputBtn.title = `Translate input to ${this.targetLang.toUpperCase()}`;
+            inputBtn.title = `Translate input to ${this.languages[this.targetLang]}`;
         }
 
         // Update all existing "Translate" buttons on the page
         document.querySelectorAll('.bf-translate-btn').forEach(btn => {
-            btn.innerHTML = `<i class="fas fa-language"></i> Translate (${this.targetLang.toUpperCase()})`;
+            btn.innerHTML = `<i class="fas fa-language"></i> Translate (${this.languages[this.targetLang]})`;
         });
     },
 
@@ -167,8 +305,6 @@ const Translator = {
             if (!msg.innerText.trim()) return;
 
             const parent = msg.closest('.message');
-            // If the message is inside a bubble, we append the button to the parent wrapper
-            // otherwise we append to the text div itself
             const container = parent || msg;
 
             this.createTranslateButton(container, msg.innerText);
@@ -179,7 +315,7 @@ const Translator = {
     createTranslateButton(container, textToTranslate) {
         const btn = document.createElement('div');
         btn.className = 'bf-translate-btn';
-        btn.innerHTML = `<i class="fas fa-language"></i> Translate (${this.targetLang.toUpperCase()})`;
+        btn.innerHTML = `<i class="fas fa-language"></i> Translate (${this.languages[this.targetLang]})`;
 
         btn.onclick = (e) => {
             e.stopPropagation();
@@ -196,7 +332,7 @@ const Translator = {
 
         const container = document.createElement('div');
         container.className = 'input-addon dark-blue-1 blue-1-hover-only pointer margin-right-2 bf-translated-input-btn';
-        container.title = `Translate input to ${this.targetLang.toUpperCase()}`;
+        container.title = `Translate input to ${this.languages[this.targetLang]}`;
 
         container.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="hover-effect">
@@ -231,42 +367,42 @@ const Translator = {
 
     // --- Helper: Execute Translation UI ---
     async performTranslation(containerElement, btnElement, text) {
-        // 1. Hide the original button while loading
         btnElement.style.display = 'none';
 
         const result = await this.fetchTranslation(text, this.targetLang);
 
         if (result) {
-            // 2. Create the result box
             const resultBox = document.createElement('div');
             resultBox.className = 'bf-translator-result';
 
-            // 3. Add Close Button Logic
             resultBox.innerHTML = `
                 <div class="bf-result-header">
-                    <span class="bf-lang-label">Translated (${this.targetLang})</span>
+                    <span class="bf-lang-label">Translated (${this.languages[this.targetLang]})</span>
                     <span class="bf-close-btn"><i class="fas fa-times"></i></span>
                 </div>
                 <div>${result}</div>
             `;
 
-            // 4. Handle Close Click
             resultBox.querySelector('.bf-close-btn').onclick = (e) => {
                 e.stopPropagation();
                 resultBox.remove();
-                btnElement.style.display = 'inline-block'; // Show the button again
+                btnElement.style.display = 'inline-block';
             };
 
             containerElement.appendChild(resultBox);
         } else {
-            // Error state: Show button again and alert
             btnElement.style.display = 'inline-block';
             btnElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
             setTimeout(() => {
-                btnElement.innerHTML = `<i class="fas fa-language"></i> Translate (${this.targetLang.toUpperCase()})`;
+                btnElement.innerHTML = `<i class="fas fa-language"></i> Translate (${this.languages[this.targetLang]})`;
             }, 2000);
         }
     }
 };
 
-window.Translator = Translator;
+// Register
+if (window.BF_Registry) {
+    window.BF_Registry.registerPlugin(Translator);
+} else {
+    window.Translator = Translator;
+}

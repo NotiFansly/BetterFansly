@@ -1,13 +1,14 @@
 // src/core/ui.js
 
+
+// --- 2. THE UI CORE ---
 const UI = {
     editingPluginId: null,
-    // Local State for Synchronous Settings (Visuals/Toggles)
+
+    // Core Visual Settings (Themes are managed here as they are global)
     settings: {
-        miniplayerEnabled: localStorage.getItem('bf_miniplayer_enabled') === 'true',
         customCSS: localStorage.getItem('bf_custom_css') || '',
         remoteThemeUrl: localStorage.getItem('bf_theme_url') || '',
-
         themeMode: localStorage.getItem('bf_theme_mode') || 'custom',
         themeFlavor: localStorage.getItem('bf_theme_flavor') || 'mocha',
         themeAccent: localStorage.getItem('bf_theme_accent') || 'mauve',
@@ -16,44 +17,25 @@ const UI = {
     // --- Initialization ---
 
     init() {
-        console.log('BetterFansly: UI Initialized');
+        console.log('BetterFansly: UI Core Initialized');
 
+        // 1. Initialize Registry Plugins
+        // We loop through registered plugins and auto-enable them if saved in localStorage
+        window.BF_Registry.plugins.forEach(plugin => {
+            const storageKey = `bf_plugin_enabled_${plugin.id}`;
+            const isEnabled = localStorage.getItem(storageKey) === 'true' ||
+                (localStorage.getItem(storageKey) === null && plugin.defaultEnabled);
 
-        // 1. Load Built-in Plugins
-        if (this.settings.miniplayerEnabled && typeof Miniplayer !== 'undefined') {
-            Miniplayer.enable();
-        }
+            if (isEnabled && typeof plugin.enable === 'function') {
+                plugin.enable();
+            }
+        });
 
-        if (localStorage.getItem('bf_mutual_enabled') === 'true' && typeof MutualIndicator !== 'undefined') {
-            MutualIndicator.enable();
-        }
-
-        if (typeof KeywordMuter !== 'undefined') {
-            KeywordMuter.enable();
-        }
-
-        if (typeof GhostMode !== 'undefined') {
-            GhostMode.injectInterceptor();
-        }
-
-        if (localStorage.getItem('bf_ghost_read') === null) localStorage.setItem('bf_ghost_read', 'true');
-        if (localStorage.getItem('bf_ghost_story') === null) localStorage.setItem('bf_ghost_story', 'true');
-        if (localStorage.getItem('bf_ghost_typing') === null) localStorage.setItem('bf_ghost_typing', 'true');
-        if (localStorage.getItem('bf_ghost_status') === null) localStorage.setItem('bf_ghost_status', 'true');
-
-        if (localStorage.getItem('bf_translator_enabled') === 'true' && typeof Translator !== 'undefined') {
-            Translator.targetLang = localStorage.getItem('bf_translator_lang') || 'en';
-            Translator.enable();
-        }
-
-        if (localStorage.getItem('bf_oneko_enabled') === 'true' && typeof Oneko !== 'undefined') {
-            Oneko.enable();
-        }
-
+        // 2. Initialize Core Features (Themes)
         this.applyTheme();
     },
 
-    // --- Theme Engine ---
+    // --- Theme Engine (Kept in Core) ---
 
     applyTheme() {
         document.getElementById('bf-custom-css-tag')?.remove();
@@ -68,8 +50,7 @@ const UI = {
             style.id = 'bf-preset-theme-tag';
             style.textContent = css;
             document.head.appendChild(style);
-        }
-        else {
+        } else {
             if (this.settings.customCSS) {
                 const style = document.createElement('style');
                 style.id = 'bf-custom-css-tag';
@@ -89,14 +70,13 @@ const UI = {
     // --- Main UI Renderer ---
 
     openMenu() {
-        const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
         if (document.getElementById('bf-backdrop')) return;
+        const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
 
         const backdrop = document.createElement('div');
         backdrop.id = 'bf-backdrop';
         backdrop.className = 'bf-backdrop';
 
-        // Removed hardcoded colors from HTML, relying on CSS classes
         backdrop.innerHTML = `
             <div class="bf-modal" onclick="event.stopPropagation()">
                 <!-- SIDEBAR -->
@@ -106,36 +86,44 @@ const UI = {
                         <span>BetterFansly</span>
                     </div>
                     
-                    <div class="bf-sidebar-label">User</div>
+                    <div class="bf-sidebar-label">General</div>
                     <button class="bf-tab-btn active" data-tab="plugins">Plugins</button>
                     <button class="bf-tab-btn" data-tab="themes">Themes</button>
 
                     <div class="bf-sidebar-label">Tools</div>
-                    <button class="bf-tab-btn" data-tab="data">Backup & Migration</button>
-                    <button class="bf-tab-btn" data-tab="spending">Spending Tracker</button>
-                    <button class="bf-tab-btn" data-tab="filters">Filters</button>
+                    <div id="bf-sidebar-tools">
+                        <!-- Tools injected here dynamically -->
+                    </div>
                     
                     <div class="bf-sidebar-label">Advanced</div>
-                    <button class="bf-tab-btn" data-tab="library">Library</button>
+                    <button class="bf-tab-btn" data-tab="library">Script Library</button>
 
-                    <div style="margin-top: 10px; border-top: 1px solid var(--bf-border); margin-bottom: 10px;"></div>
-                    <button class="bf-tab-btn" data-tab="about"><i class="fas fa-info-circle"></i> About</button>
-                    
                     <div style="flex:1"></div>
+                    <div style="border-top: 1px solid var(--bf-border); margin: 10px 0;"></div>
+                    <button class="bf-tab-btn" data-tab="about"><i class="fas fa-info-circle"></i> About</button>
                     <button class="bf-tab-btn" id="bf-close-btn" style="color: var(--bf-subtext);">
                         <i class="fa-fw fas fa-times"></i> Close
                     </button>
                 </div>
 
                 <!-- CONTENT AREA -->
-                <div class="bf-content" id="bf-tab-content">
-                    <!-- Loaded via JS -->
-                </div>
+                <div class="bf-content" id="bf-tab-content"></div>
             </div>
         `;
 
         document.body.appendChild(backdrop);
 
+        // --- DYNAMIC SIDEBAR GENERATION ---
+        const toolContainer = backdrop.querySelector('#bf-sidebar-tools');
+        window.BF_Registry.tools.forEach(tool => {
+            const btn = document.createElement('button');
+            btn.className = 'bf-tab-btn';
+            btn.dataset.tab = tool.id; // Use ID for routing
+            btn.innerHTML = `<i class="fas ${tool.icon || 'fa-tools'}"></i> ${tool.name}`;
+            toolContainer.appendChild(btn);
+        });
+
+        // --- EVENT LISTENERS ---
         const close = () => backdrop.remove();
         backdrop.onclick = close;
         document.getElementById('bf-close-btn').onclick = close;
@@ -149,211 +137,66 @@ const UI = {
             };
         });
 
+        // Default Tab
         this.renderTab('plugins');
     },
 
     renderTab(tabName) {
         const container = document.getElementById('bf-tab-content');
-        container.innerHTML = '';
+        container.innerHTML = ''; // Clear content
 
-        switch (tabName) {
-            case 'plugins': this.renderPluginsTab(container); break;
-            case 'themes': this.renderThemesTab(container); break;
-            case 'library': this.renderLibraryTab(container); break;
-            case 'data': this.renderDataTab(container); break;
-            case 'spending': this.renderSpendingTab(container); break;
-            case 'filters': this.renderFiltersTab(container); break;
-            case 'about': this.renderAboutTab(container); break;
-            default: container.innerHTML = '<div>Tab not found</div>';
+        // 1. Check Core Tabs
+        if (tabName === 'plugins') return this.renderPluginsTab(container);
+        if (tabName === 'themes') return this.renderThemesTab(container);
+        if (tabName === 'library') return this.renderLibraryTab(container);
+        if (tabName === 'about') return this.renderAboutTab(container);
+
+        // 2. Check Registered Tools
+        const tool = window.BF_Registry.tools.find(t => t.id === tabName);
+        if (tool && typeof tool.renderToolView === 'function') {
+            // The tool is responsible for returning its own DOM Element
+            const toolView = tool.renderToolView();
+            if (toolView instanceof HTMLElement) {
+                container.appendChild(toolView);
+            } else {
+                container.innerHTML = `<div style="color:red">Error: Tool ${tool.name} returned invalid content.</div>`;
+            }
+            return;
         }
+
+        container.innerHTML = `<div style="padding:20px; text-align:center; color:var(--bf-subtext)">Tab not found: ${tabName}</div>`;
     },
 
-    // --- Tab: Plugins ---
-
+    // --- TAB: PLUGINS (Registry Driven) ---
     renderPluginsTab(container) {
         container.innerHTML = `
             <div class="bf-section-title">Core Plugins</div>
             <div class="bf-description">Essential features built into BetterFansly.</div>
-            
-            <div class="bf-plugin-card">
-                <div>
-                    <div style="font-weight:bold;">Stream Miniplayer</div>
-                    <div style="font-size:12px; color:var(--bf-subtext);">PiP mode, draggable player, auto-quality selector.</div>
-                </div>
-                <input type="checkbox" class="bf-toggle" id="toggle-miniplayer" ${this.settings.miniplayerEnabled ? 'checked' : ''}>
-            </div>
-
-            <div class="bf-plugin-card">
-                <div>
-                    <div style="font-weight:bold;">Mutual Indicator</div>
-                    <div style="font-size:12px; color:var(--bf-subtext);">Shows a "Follows You" badge next to usernames.</div>
-                </div>
-                <input type="checkbox" class="bf-toggle" id="toggle-mutual" ${localStorage.getItem('bf_mutual_enabled') === 'true' ? 'checked' : ''}>
-            </div>
-
-            <div class="bf-plugin-card" style="display:block; transition: all 0.2s;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; gap: 10px; align-items: center;">
-                        <div>
-                            <div style="font-weight:bold;">Ghost Mode 👻</div>
-                            <div style="font-size:12px; color:var(--bf-subtext);">
-                                Stealthily read, view, and type.
-                            </div>
-                        </div>
-                        <!-- Collapse/Expand Button (Visible only when ON) -->
-                        <div id="ghost-settings-btn" style="cursor:pointer; padding:5px; border-radius:4px; display:none; color:var(--bf-accent);">
-                            <i class="fas fa-chevron-down" id="ghost-chevron" style="transition: transform 0.2s;"></i>
-                        </div>
-                    </div>
-                    <input type="checkbox" class="bf-toggle" id="toggle-ghost" ${localStorage.getItem('bf_ghost_mode') === 'true' ? 'checked' : ''}>
-                </div>
-
-                <!-- Sub-Menu (Hidden by default) -->
-                <div id="ghost-submenu" style="display: none; margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--bf-border);">
-                    <div style="font-size: 11px; font-weight: bold; color: var(--bf-subtext); margin-bottom: 10px; text-transform: uppercase;">
-                        Active Protections
-                    </div>
-
-                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
-                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-read" ${localStorage.getItem('bf_ghost_read') !== 'false' ? 'checked' : ''}>
-                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Read Receipts</b> (Messages)</span>
-                    </label>
-
-                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
-                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-story" ${localStorage.getItem('bf_ghost_story') !== 'false' ? 'checked' : ''}>
-                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Story Views</b> (Lurk)</span>
-                    </label>
-
-                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
-                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-typing" ${localStorage.getItem('bf_ghost_typing') !== 'false' ? 'checked' : ''}>
-                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Typing Indicator</b></span>
-                    </label>
-                    
-                    <label style="display: flex; align-items: center; margin-bottom: 5px; cursor: pointer;">
-                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-status" ${localStorage.getItem('bf_ghost_status') !== 'false' ? 'checked' : ''}>
-                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Online Status</b> (Appear Offline)</span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="bf-plugin-card">
-                <div>
-                    <div style="font-weight:bold;">Chat Translator</div>
-                    <div style="font-size:12px; color:var(--bf-subtext);">
-                        Native translation for DMs, Feed posts, and Input bar.
-                    </div>
-                    <select id="translator-lang-select" class="bf-input" style="width: auto; margin-top: 5px; font-size: 11px; padding: 2px;">
-                        <option value="en">To English</option>
-                        <option value="es">To Spanish</option>
-                        <option value="fr">To French</option>
-                        <option value="de">To German</option>
-                        <option value="ru">To Russian</option>
-                        <option value="zh-CN">To Chinese (Simplified)</option>
-                        <option value="ja">To Japanese</option>
-                        <option value="ko">To Korean</option>
-                    </select>
-                </div>
-                <input type="checkbox" class="bf-toggle" id="toggle-translator" ${localStorage.getItem('bf_translator_enabled') === 'true' ? 'checked' : ''}>
-            </div>
-
-            <div class="bf-plugin-card">
-                <div>
-                    <div style="font-weight:bold;">Oneko 🐈</div>
-                    <div style="font-size:12px; color:var(--bf-subtext);">
-                        Adds a retro desktop cat that chases your cursor.
-                    </div>
-                </div>
-                <input type="checkbox" class="bf-toggle" id="toggle-oneko" ${localStorage.getItem('bf_oneko_enabled') === 'true' ? 'checked' : ''}>
-            </div>
+            <div id="bf-plugin-list"></div>
         `;
 
-        // Toggles Logic
-        document.getElementById('toggle-miniplayer').onchange = (e) => {
-            this.settings.miniplayerEnabled = e.target.checked;
-            localStorage.setItem('bf_miniplayer_enabled', e.target.checked);
-            if (typeof Miniplayer !== 'undefined') e.target.checked ? Miniplayer.enable() : Miniplayer.disable();
-        };
-        document.getElementById('toggle-mutual').onchange = (e) => {
-            localStorage.setItem('bf_mutual_enabled', e.target.checked);
-            if (typeof MutualIndicator !== 'undefined') e.target.checked ? MutualIndicator.enable() : MutualIndicator.disable();
-        };
+        const list = container.querySelector('#bf-plugin-list');
 
-        const ghostToggle = document.getElementById('toggle-ghost');
-        const ghostBtn = document.getElementById('ghost-settings-btn');
-        const ghostMenu = document.getElementById('ghost-submenu');
-        const ghostChevron = document.getElementById('ghost-chevron');
+        if (window.BF_Registry.plugins.length === 0) {
+            list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--bf-subtext); font-style:italic;">
+                No plugins registered.<br>Make sure your plugins are updated to use BF_Registry.
+            </div>`;
+            return;
+        }
 
-        // Helper to handle visual state
-        const updateGhostVisuals = (isEnabled) => {
-            if (isEnabled) {
-                ghostBtn.style.display = 'block'; // Show gear/chevron
-            } else {
-                ghostBtn.style.display = 'none';
-                ghostMenu.style.display = 'none'; // Auto-close if disabled
-                ghostChevron.style.transform = 'rotate(0deg)';
+        window.BF_Registry.plugins.forEach(plugin => {
+            if (typeof plugin.renderSettings === 'function') {
+                const settingsCard = plugin.renderSettings();
+                if (settingsCard instanceof HTMLElement) {
+                    list.appendChild(settingsCard);
+                }
             }
-        };
-
-        // Init State
-        updateGhostVisuals(localStorage.getItem('bf_ghost_mode') === 'true');
-
-        // Master Toggle
-        ghostToggle.onchange = (e) => {
-            const enabled = e.target.checked;
-            localStorage.setItem('bf_ghost_mode', enabled);
-            updateGhostVisuals(enabled);
-
-            if (typeof GhostMode !== 'undefined') {
-                enabled ? GhostMode.enable() : GhostMode.disable();
-            }
-        };
-
-        // Collapse/Expand Toggle
-        ghostBtn.onclick = () => {
-            const isClosed = ghostMenu.style.display === 'none';
-            ghostMenu.style.display = isClosed ? 'block' : 'none';
-            ghostChevron.style.transform = isClosed ? 'rotate(180deg)' : 'rotate(0deg)';
-        };
-
-        // Sub-Toggles
-        const bindGhostSub = (id, key) => {
-            document.getElementById(id).onchange = (e) => {
-                localStorage.setItem(key, e.target.checked);
-            };
-        };
-
-        bindGhostSub('sub-ghost-read', 'bf_ghost_read');
-        bindGhostSub('sub-ghost-story', 'bf_ghost_story');
-        bindGhostSub('sub-ghost-typing', 'bf_ghost_typing');
-        bindGhostSub('sub-ghost-status', 'bf_ghost_status');
-
-        document.getElementById('toggle-oneko').onchange = (e) => {
-            localStorage.setItem('bf_oneko_enabled', e.target.checked);
-            if (typeof Oneko !== 'undefined') e.target.checked ? Oneko.enable() : Oneko.disable();
-        };
-
-        // Translator Logic
-        const transToggle = document.getElementById('toggle-translator');
-        const transSelect = document.getElementById('translator-lang-select');
-        const savedLang = localStorage.getItem('bf_translator_lang') || 'en';
-        transSelect.value = savedLang;
-        if (typeof Translator !== 'undefined') Translator.targetLang = savedLang;
-
-        transToggle.onchange = (e) => {
-            const enabled = e.target.checked;
-            localStorage.setItem('bf_translator_enabled', enabled);
-            if (typeof Translator !== 'undefined') enabled ? Translator.enable() : Translator.disable();
-        };
-        transSelect.onchange = (e) => {
-            const val = e.target.value;
-            localStorage.setItem('bf_translator_lang', val);
-            if (typeof Translator !== 'undefined') Translator.setTargetLang(val);
-        };
+        });
     },
 
-    // --- Tab: Themes ---
-
+    // --- TAB: THEMES (Core Feature) ---
     renderThemesTab(container) {
+        // (Kept largely the same as previous version, as it's complex logic specific to UI Core)
         const themes = window.BF_Themes || {};
         const themeOptions = Object.keys(themes).map(key =>
             `<option value="${key}">${themes[key].name}</option>`
@@ -450,250 +293,7 @@ const UI = {
         };
     },
 
-    renderDataTab(container) {
-        container.innerHTML = `
-            <div class="bf-section-title"> Account Backup & Migration </div >
-            <div class="bf-description">Export your followed creators to a file, or import them to a new account.</div>
-
-            <div class="bf-plugin-card" style="display:block;">
-                <div style="font-weight:bold; margin-bottom:5px;">Export Following List</div>
-                <div style="font-size:12px; color:var(--bf-subtext); margin-bottom:15px;">
-                    Scrapes your "Following" list and "Subscriptions", grabs their usernames, and saves as JSON.
-                </div>
-                <button class="bf-btn" id="btn-export">
-                    <i class="fas fa-download"></i> Start Export
-                </button>
-                <div id="export-status" style="margin-top:10px; font-size:12px; color:var(--bf-accent);"></div>
-            </div>
-
-            <div class="bf-plugin-card" style="display:block; margin-top:20px;">
-                <div style="font-weight:bold; margin-bottom:5px;">Import Following List</div>
-                <div style="font-size:12px; color:var(--bf-subtext); margin-bottom:15px;">
-                    Restores follows from a JSON file. <br>
-                    <span style="color:#f38ba8;">Warning: This takes time (approx 1.5s per user) to avoid account bans.</span>
-                </div>
-
-                <input type="file" id="import-file" accept=".json" class="bf-input">
-
-                <button class="bf-btn" id="btn-import" style="margin-top:10px; opacity:0.5; cursor:not-allowed;" disabled>
-                    <i class="fas fa-upload"></i> Start Import
-                </button>
-
-                <div id="import-progress" style="margin-top:10px; font-size:12px; color:var(--bf-accent);"></div>
-                <textarea id="import-log" class="bf-input" rows="5" style="display:none; margin-top:10px; font-family:monospace; font-size:11px;" readonly></textarea>
-            </div>
-        `;
-
-        // (Events for Backup tool remain same...)
-        // --- EXPORT HANDLER ---
-        document.getElementById('btn-export').onclick = async () => {
-            const status = document.getElementById('export-status');
-            const btn = document.getElementById('btn-export');
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            try {
-                const data = await BackupTools.exportFollowing((msg) => { status.innerText = msg; });
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `fansly_backup_${data.exported_by}_${Date.now()}.json`;
-                a.click();
-                status.innerText = `✅ Export Complete! (${data.accounts.length} accounts)`;
-            } catch (e) {
-                status.innerText = "❌ Error: " + e.message;
-            } finally {
-                btn.disabled = false;
-                btn.style.opacity = '1';
-            }
-        };
-
-        // --- IMPORT HANDLER ---
-        const fileInput = document.getElementById('import-file');
-        const importBtn = document.getElementById('btn-import');
-        fileInput.onchange = (e) => {
-            if (e.target.files.length > 0) {
-                importBtn.disabled = false;
-                importBtn.style.opacity = '1';
-                importBtn.style.cursor = 'pointer';
-            }
-        };
-        importBtn.onclick = async () => {
-            const file = fileInput.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const json = JSON.parse(e.target.result);
-                    if (!json.accounts || !Array.isArray(json.accounts)) throw new Error("Invalid Backup File");
-                    if (!confirm(`Ready to import ${json.accounts.length} accounts ?\nThis will take about ${(json.accounts.length * 1.5 / 60).toFixed(1)} minutes.`)) return;
-
-                    importBtn.disabled = true;
-                    importBtn.style.opacity = '0.5';
-                    const prog = document.getElementById('import-progress');
-                    const log = document.getElementById('import-log');
-                    log.style.display = 'block';
-                    log.value = "Starting import process...\n";
-
-                    const result = await BackupTools.importFollowing(json.accounts, (msg) => { prog.innerText = msg; });
-                    prog.innerText = `✅ Done! Success: ${result.success} | Failed: ${result.failed} `;
-                    log.value += `\n--- REPORT ---\nTotal: ${result.total}\nSuccess: ${result.success}\nFailed: ${result.failed}\n`;
-                    if (result.errors.length > 0) log.value += "\nFailures:\n" + result.errors.join('\n');
-                } catch (err) { alert("Error reading file: " + err.message); }
-                finally { importBtn.disabled = false; importBtn.style.opacity = '1'; }
-            };
-            reader.readAsText(file);
-        };
-    },
-
-    renderSpendingTab(container) {
-        container.innerHTML = `
-            <div class="bf-section-title">Spending Tracker</div>
-            <div class="bf-description">Analyze your purchase history across all creators.</div>
-
-            <div class="bf-plugin-card" style="display:block; text-align:center; padding: 40px;">
-                <i class="fas fa-chart-pie" style="font-size: 40px; color: var(--bf-accent); margin-bottom: 20px;"></i>
-                <div style="margin-bottom: 20px;">
-                    Click below to scan your transaction history.<br>
-                    <span style="font-size:12px; color:var(--bf-subtext);">(This scans local API data, nothing is sent to external servers)</span>
-                </div>
-                <button class="bf-btn" id="btn-scan-spending">Scan History</button>
-                <div id="spending-status" style="margin-top:15px; color:var(--bf-accent); font-size:13px;"></div>
-            </div>
-
-            <div id="spending-results" style="display:none; animation: fadeIn 0.5s;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                    <div style="background:var(--bf-card-bg); padding:15px; border-radius:8px; border:1px solid var(--bf-border); text-align:center;">
-                        <div style="font-size:12px; color:var(--bf-subtext);">Total Spent</div>
-                        <div id="kpi-total" style="font-size:24px; font-weight:bold; color:var(--bf-accent);">$0.00</div>
-                    </div>
-                    <div style="background:var(--bf-card-bg); padding:15px; border-radius:8px; border:1px solid var(--bf-border); text-align:center;">
-                        <div style="font-size:12px; color:var(--bf-subtext);">Transactions</div>
-                        <div id="kpi-count" style="font-size:24px; font-weight:bold; color:var(--bf-text);">0</div>
-                    </div>
-                </div>
-
-                <div style="background:var(--bf-card-bg); padding:10px; border-radius:8px; border:1px solid var(--bf-border); margin-bottom:20px; text-align:center; font-size:12px; color:var(--bf-subtext);">
-                    Timeline: <span id="kpi-timeline" style="color:var(--bf-text); font-weight:bold;">-</span>
-                </div>
-
-                <div class="bf-section-title" style="font-size:14px;">Top Creators</div>
-                <div id="top-creators-list" style="max-height: 300px; overflow-y: auto; background:var(--bf-card-bg); border:1px solid var(--bf-border); border-radius:8px; margin-bottom:20px;">
-                </div>
-
-                <div class="bf-section-title" style="font-size:14px;">Yearly Breakdown</div>
-                <div id="year-breakdown" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
-            </div>
-        `;
-
-        // (Spending logic from previous code...)
-        document.getElementById('btn-scan-spending').onclick = async () => {
-            const btn = document.getElementById('btn-scan-spending');
-            const status = document.getElementById('spending-status');
-            const results = document.getElementById('spending-results');
-            btn.disabled = true; btn.style.opacity = '0.5'; results.style.display = 'none';
-
-            try {
-                const data = await SpendingTracker.analyzeSpending((msg) => { status.innerText = msg; });
-                if (!data) { status.innerText = "No payment history found."; return; }
-
-                document.getElementById('kpi-total').innerText = SpendingTracker.formatMoney(data.total);
-                document.getElementById('kpi-count').innerText = data.count;
-                document.getElementById('kpi-timeline').innerText = `${SpendingTracker.formatDate(data.firstDate)} — ${SpendingTracker.formatDate(data.lastDate)}`;
-
-                const list = document.getElementById('top-creators-list');
-                list.innerHTML = '';
-                data.byAccount.forEach((acc, index) => {
-                    const row = document.createElement('div');
-                    row.style.padding = '10px';
-                    row.style.borderBottom = '1px solid var(--bf-border)';
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'space-between';
-                    const percent = (acc.total / data.total) * 100;
-                    row.style.background = `linear-gradient(90deg, rgba(168, 85, 247, 0.1) ${percent}%, transparent ${percent}%)`;
-                    row.innerHTML = `<div><span style="color:var(--bf-subtext); font-size:11px; margin-right:8px;">#${index + 1}</span><span style="font-weight:bold;">@${acc.name}</span></div><div style="font-family:monospace;">${SpendingTracker.formatMoney(acc.total)}</div>`;
-                    list.appendChild(row);
-                });
-
-                const yearsContainer = document.getElementById('year-breakdown');
-                yearsContainer.innerHTML = '';
-                Object.entries(data.byYear).forEach(([year, cents]) => {
-                    const tag = document.createElement('div');
-                    tag.style.background = 'var(--bf-card-bg)';
-                    tag.style.padding = '8px 12px';
-                    tag.style.borderRadius = '6px';
-                    tag.style.border = '1px solid var(--bf-border)';
-                    tag.innerHTML = `<div style="font-size:11px; color:var(--bf-subtext);">${year}</div><div style="font-weight:bold; color:var(--bf-accent);">${SpendingTracker.formatMoney(cents / 100)}</div>`;
-                    yearsContainer.appendChild(tag);
-                });
-                status.innerText = "";
-                results.style.display = 'block';
-            } catch (e) { status.innerText = "Error: " + e.message; }
-            finally { btn.disabled = false; btn.style.opacity = '1'; btn.innerText = "Re-Scan"; }
-        };
-    },
-
-    renderFiltersTab(container) {
-        container.innerHTML = `
-            <div class="bf-section-title">Keyword Muter</div>
-            <div class="bf-description">Hide posts that contain specific words or phrases.</div>
-
-            <div class="bf-plugin-card" style="display:block;">
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <input type="text" id="mute-input" class="bf-input" placeholder="Enter keyword (e.g. 'anal')" style="margin:0;">
-                    <button class="bf-btn" id="mute-add-btn" style="margin:0;">Add</button>
-                </div>
-                <div style="font-size:12px; font-weight:bold; margin-bottom:10px;">Active Muted Words:</div>
-                <div id="mute-list" style="display:flex; flex-wrap:wrap; gap:8px; min-height:50px; background:var(--bf-card-bg); padding:10px; border-radius:6px; align-items: flex-start;"></div>
-            </div>
-        `;
-
-        const renderList = () => {
-            const list = document.getElementById('mute-list');
-            list.innerHTML = '';
-            const keywords = KeywordMuter.keywords || [];
-            if (keywords.length === 0) {
-                list.innerHTML = '<span style="color:var(--bf-subtext); font-style:italic; padding: 5px;">No keywords added.</span>';
-                return;
-            }
-            keywords.forEach((word, idx) => {
-                const tag = document.createElement('div');
-                Object.assign(tag.style, {
-                    background: '#f38ba8', color: '#1e1e2e',
-                    padding: '6px 12px', borderRadius: '20px',
-                    fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '6px', userSelect: 'none'
-                });
-                tag.innerHTML = `<span>${word}</span><i class="fas fa-times" style="font-size: 11px; opacity: 0.7;"></i>`;
-                tag.onclick = () => {
-                    keywords.splice(idx, 1);
-                    KeywordMuter.updateKeywords(keywords);
-                    renderList();
-                };
-                list.appendChild(tag);
-            });
-        };
-
-        document.getElementById('mute-add-btn').onclick = () => {
-            const input = document.getElementById('mute-input');
-            const word = input.value.trim();
-            if (word) {
-                const current = KeywordMuter.keywords || [];
-                if (!current.some(w => w.toLowerCase() === word.toLowerCase())) {
-                    current.push(word);
-                    KeywordMuter.updateKeywords(current);
-                    if (!KeywordMuter.isActive) KeywordMuter.enable();
-                }
-                input.value = '';
-                renderList();
-            }
-        };
-        document.getElementById('mute-input').onkeypress = (e) => {
-            if (e.key === 'Enter') document.getElementById('mute-add-btn').click();
-        };
-        renderList();
-    },
-
+    // --- TAB: LIBRARY (UserScripts) ---
     async renderLibraryTab(container) {
         container.innerHTML = `
             <div class="bf-section-title"> Plugin Library </div>
@@ -703,7 +303,7 @@ const UI = {
             </div>
 
             <!-- Editor Section -->
-            <details id="cp-editor-details" open style="margin-bottom: 20px; background: var(--bf-card-bg); padding: 10px; border-radius: 8px;">
+            <details id="cp-editor-details" style="margin-bottom: 20px; background: var(--bf-card-bg); padding: 10px; border-radius: 8px;">
                 <summary style="cursor:pointer; font-weight:bold; outline:none;">+ Add / Edit Plugin</summary>
                 <div style="margin-top: 10px;">
                     <input type="text" id="cp-name" class="bf-input" placeholder="Plugin Name">
@@ -722,165 +322,102 @@ const UI = {
             </div>
         `;
 
-        // --- SAVE / UPDATE HANDLER ---
-        document.getElementById('cp-save-btn').onclick = async () => {
-            const nameField = document.getElementById('cp-name');
-            const codeField = document.getElementById('cp-code');
-            const name = nameField.value.trim();
-            const code = codeField.value.trim();
+        // Editor Logic
+        const resetEditor = () => {
+            this.editingPluginId = null;
+            document.getElementById('cp-name').value = '';
+            document.getElementById('cp-code').value = '';
+            const saveBtn = document.getElementById('cp-save-btn');
+            saveBtn.innerText = 'Install Plugin';
+            saveBtn.style.background = '';
+            document.getElementById('cp-cancel-btn').style.display = 'none';
+        };
 
+        document.getElementById('cp-cancel-btn').onclick = resetEditor;
+
+        document.getElementById('cp-save-btn').onclick = async () => {
+            const name = document.getElementById('cp-name').value.trim();
+            const code = document.getElementById('cp-code').value.trim();
             if (!name || !code) return alert("Name and Code are required.");
 
             const data = await chrome.storage.local.get('bf_plugins');
             const plugins = data.bf_plugins || [];
 
             if (this.editingPluginId) {
-                // UPDATE EXISTING
                 const index = plugins.findIndex(p => p.id === this.editingPluginId);
-                if (index > -1) {
-                    plugins[index].name = name;
-                    plugins[index].code = code;
-                    // We keep 'enabled' and 'id' as they were
-                }
+                if (index > -1) { plugins[index].name = name; plugins[index].code = code; }
             } else {
-                // CREATE NEW
-                const newPlugin = {
-                    id: 'plugin_' + Date.now(),
-                    name,
-                    code,
-                    enabled: true
-                };
-                plugins.push(newPlugin);
+                plugins.push({ id: 'plugin_' + Date.now(), name, code, enabled: true });
             }
 
             await chrome.storage.local.set({ bf_plugins: plugins });
-
-            // Notify background to reload scripts
             chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
-
-            // Reset UI
-            this.resetEditor();
-            this.refreshLibraryList();
+            resetEditor();
+            refreshList();
         };
 
-        // --- CANCEL HANDLER ---
-        document.getElementById('cp-cancel-btn').onclick = () => {
-            this.resetEditor();
-        };
+        const refreshList = async () => {
+            const listContainer = document.getElementById('cp-list');
+            const data = await chrome.storage.local.get('bf_plugins');
+            const plugins = data.bf_plugins || [];
 
-        this.refreshLibraryList();
-    },
-
-    resetEditor() {
-        this.editingPluginId = null;
-        document.getElementById('cp-name').value = '';
-        document.getElementById('cp-code').value = '';
-
-        const saveBtn = document.getElementById('cp-save-btn');
-        const cancelBtn = document.getElementById('cp-cancel-btn');
-
-        saveBtn.innerText = 'Install Plugin';
-        saveBtn.style.background = ''; // Reset color
-        cancelBtn.style.display = 'none';
-
-        // Optional: Close details after save
-        // document.getElementById('cp-editor-details').removeAttribute('open');
-    },
-
-    async refreshLibraryList() {
-        const listContainer = document.getElementById('cp-list');
-        const data = await chrome.storage.local.get('bf_plugins');
-        const plugins = data.bf_plugins || [];
-
-        if (plugins.length === 0) {
-            listContainer.innerHTML = '<div style="color:var(--bf-subtext); font-style:italic;">No custom plugins installed.</div>';
-            return;
-        }
-
-        listContainer.innerHTML = '';
-
-        plugins.forEach((p, index) => {
-            const card = document.createElement('div');
-            card.className = 'bf-plugin-card';
-
-            // Highlight card if it's currently being edited
-            if (this.editingPluginId === p.id) {
-                card.style.border = '1px solid var(--bf-accent)';
-                card.style.background = 'rgba(168, 85, 247, 0.05)';
+            if (plugins.length === 0) {
+                listContainer.innerHTML = '<div style="color:var(--bf-subtext); font-style:italic;">No custom plugins installed.</div>';
+                return;
             }
 
-            card.innerHTML = `
-                <div style="flex:1; padding-right:10px; overflow:hidden;">
-                    <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
-                    <div style="font-size:10px; color:var(--bf-subtext); font-family:monospace;">${p.code.length} bytes</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <!-- ENABLE TOGGLE -->
-                    <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
-                    
-                    <!-- EDIT BUTTON -->
-                    <button class="bf-btn" id="edit-${p.id}" style="background:var(--bf-surface-2); color:var(--bf-text); padding:5px 10px; font-size:12px;">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-
-                    <!-- DELETE BUTTON -->
-                    <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
-            listContainer.appendChild(card);
-
-            // Toggle Logic
-            card.querySelector(`#toggle-${p.id}`).onchange = async (e) => {
-                plugins[index].enabled = e.target.checked;
-                await chrome.storage.local.set({ bf_plugins: plugins });
-                chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
-            };
-
-            // Edit Logic
-            card.querySelector(`#edit-${p.id}`).onclick = () => {
-                this.editingPluginId = p.id;
-
-                // Populate inputs
-                document.getElementById('cp-name').value = p.name;
-                document.getElementById('cp-code').value = p.code;
-
-                // Open Editor if closed
-                document.getElementById('cp-editor-details').setAttribute('open', 'true');
-
-                // Update Buttons
-                const saveBtn = document.getElementById('cp-save-btn');
-                const cancelBtn = document.getElementById('cp-cancel-btn');
-
-                saveBtn.innerText = 'Save Changes';
-                saveBtn.style.background = 'var(--bf-accent)';
-                cancelBtn.style.display = 'block';
-
-                // Scroll to top
-                document.querySelector('.bf-content').scrollTop = 0;
-
-                // Refresh list to show highlight
-                this.refreshLibraryList();
-            };
-
-            // Delete Logic
-            card.querySelector(`#del-${p.id}`).onclick = async () => {
-                if (!confirm(`Delete plugin "${p.name}"?`)) return;
-
-                // If we are deleting the one being edited, reset editor
+            listContainer.innerHTML = '';
+            plugins.forEach((p, index) => {
+                const card = document.createElement('div');
+                card.className = 'bf-plugin-card';
                 if (this.editingPluginId === p.id) {
-                    this.resetEditor();
+                    card.style.border = '1px solid var(--bf-accent)';
+                    card.style.background = 'rgba(168, 85, 247, 0.05)';
                 }
 
-                plugins.splice(index, 1);
-                await chrome.storage.local.set({ bf_plugins: plugins });
-                chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
-                this.refreshLibraryList();
-            };
-        });
+                card.innerHTML = `
+                    <div style="flex:1; padding-right:10px; overflow:hidden;">
+                        <div style="font-weight:bold;">${p.name}</div>
+                        <div style="font-size:10px; color:var(--bf-subtext);">${p.code.length} bytes</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" class="bf-toggle" id="toggle-${p.id}" ${p.enabled ? 'checked' : ''}>
+                        <button class="bf-btn" id="edit-${p.id}" style="padding:5px 10px; font-size:12px;"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="bf-btn" id="del-${p.id}" style="background:#f38ba8; padding:5px 10px; font-size:12px;"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+
+                card.querySelector(`#toggle-${p.id}`).onchange = async (e) => {
+                    plugins[index].enabled = e.target.checked;
+                    await chrome.storage.local.set({ bf_plugins: plugins });
+                    chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
+                };
+
+                card.querySelector(`#edit-${p.id}`).onclick = () => {
+                    this.editingPluginId = p.id;
+                    document.getElementById('cp-name').value = p.name;
+                    document.getElementById('cp-code').value = p.code;
+                    document.getElementById('cp-editor-details').setAttribute('open', 'true');
+                    document.getElementById('cp-save-btn').innerText = 'Save Changes';
+                    document.getElementById('cp-cancel-btn').style.display = 'block';
+                    refreshList();
+                };
+
+                card.querySelector(`#del-${p.id}`).onclick = async () => {
+                    if (confirm(`Delete ${p.name}?`)) {
+                        plugins.splice(index, 1);
+                        await chrome.storage.local.set({ bf_plugins: plugins });
+                        chrome.runtime.sendMessage({ type: 'REGISTER_PLUGINS' });
+                        refreshList();
+                    }
+                };
+            });
+        };
+        refreshList();
     },
 
+    // --- TAB: ABOUT ---
     renderAboutTab(container) {
         const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
         const manifest = chrome.runtime.getManifest();
@@ -954,3 +491,6 @@ const UI = {
         `;
     }
 };
+
+// Expose UI to global scope for injector.js
+window.UI = UI;

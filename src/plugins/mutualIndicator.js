@@ -1,10 +1,50 @@
 // src/plugins/mutualIndicator.js
 
 const MutualIndicator = {
+    // --- 1. Registry Metadata ---
+    id: 'mutual_indicator',
+    name: 'Mutual Indicator',
+    description: 'Shows a "Follows You" badge next to usernames of people who follow you.',
+    defaultEnabled: false,
+
+    // --- 2. State Variables ---
     isActive: false,
     observer: null,
     followersCache: new Set(),
     isFetching: false,
+
+    // --- 3. UI Renderer (Registry Pattern) ---
+    renderSettings() {
+        const container = document.createElement('div');
+        container.className = 'bf-plugin-card';
+
+        // Check standardized storage key
+        const isEnabled = localStorage.getItem(`bf_plugin_enabled_${this.id}`) === 'true';
+
+        container.innerHTML = `
+            <div style="flex: 1;">
+                <div style="font-weight:bold;">${this.name}</div>
+                <div style="font-size:12px; color:var(--bf-subtext);">${this.description}</div>
+            </div>
+            <input type="checkbox" class="bf-toggle">
+        `;
+
+        const toggle = container.querySelector('.bf-toggle');
+        toggle.checked = isEnabled;
+
+        toggle.onchange = (e) => {
+            const active = e.target.checked;
+            localStorage.setItem(`bf_plugin_enabled_${this.id}`, active);
+            // Legacy key support
+            localStorage.setItem('bf_mutual_enabled', active);
+
+            active ? this.enable() : this.disable();
+        };
+
+        return container;
+    },
+
+    // --- 4. Core Logic ---
 
     async enable() {
         if (this.isActive) return;
@@ -13,7 +53,9 @@ const MutualIndicator = {
         this.injectStyles();
         this.loadCache();
         this.startObserver();
-        await this.updateFollowersList();
+
+        // Don't await this so the UI doesn't freeze during init
+        this.updateFollowersList();
 
         console.log("BetterFansly: Mutual Indicator Enabled");
     },
@@ -23,6 +65,7 @@ const MutualIndicator = {
         this.isActive = false;
         if (this.observer) this.observer.disconnect();
         document.querySelectorAll('.bf-mutual-badge').forEach(el => el.remove());
+        console.log("BetterFansly: Mutual Indicator Disabled");
     },
 
     async updateFollowersList() {
@@ -30,7 +73,10 @@ const MutualIndicator = {
         this.isFetching = true;
 
         const auth = this.getAuth();
-        if (!auth) return;
+        if (!auth) {
+            this.isFetching = false;
+            return;
+        }
 
         let offset = 0;
         const limit = 100;
@@ -38,7 +84,11 @@ const MutualIndicator = {
         const tempSet = new Set();
 
         try {
-            while (keepGoing) {
+            // Safety break after 5000 follows to prevent infinite loops/bans
+            let safeGuard = 0;
+
+            while (keepGoing && safeGuard < 50) {
+                safeGuard++;
                 const url = `https://apiv3.fansly.com/api/v1/account/${auth.accountId}/followersnew?limit=${limit}&offset=${offset}&ngsw-bypass=true`;
                 const response = await this.req(url);
 
@@ -54,7 +104,9 @@ const MutualIndicator = {
 
                     offset += accounts.length;
                     if (accounts.length < limit) keepGoing = false;
-                    await new Promise(r => setTimeout(r, 100));
+
+                    // Small delay to be nice to the API
+                    await new Promise(r => setTimeout(r, 200));
                 } else {
                     keepGoing = false;
                 }
@@ -87,7 +139,7 @@ const MutualIndicator = {
         const pathParts = window.location.pathname.split('/');
         // e.g. fansly.com/username -> "username"
         const currentUrlUser = pathParts[1] ? pathParts[1].split(/[?#]/)[0].toLowerCase() : null;
-        const isSystemPage = ['settings', 'messages', 'notifications', 'subscriptions'].includes(currentUrlUser);
+        const isSystemPage = ['settings', 'messages', 'notifications', 'subscriptions', 'live', 'explore'].includes(currentUrlUser);
 
         // --- 2. CLEANUP (Remove invalid badges) ---
         const existingBadges = document.querySelectorAll('.bf-mutual-badge');
@@ -120,13 +172,15 @@ const MutualIndicator = {
 
         links.forEach(link => {
             const href = link.getAttribute('href');
+            if (!href || href.length < 2) return;
+
             const username = href.substring(1).split(/[?#]/)[0].split('/')[0].toLowerCase();
 
             if (['settings', 'messages', 'notifications'].includes(username)) return;
 
             link.classList.add('bf-checked');
 
-            // Skip Avatars/Images
+            // Skip Avatars/Images to avoid visual clutter
             if (link.querySelector('.avatar') ||
                 link.querySelector('app-account-avatar') ||
                 link.classList.contains('avatar') ||
@@ -151,8 +205,7 @@ const MutualIndicator = {
                 // Ensure we don't double badge
                 if (span.querySelector('.bf-mutual-badge')) return;
 
-                // Double check: Does the text actually match the URL user?
-                // (Prevents badging "Suggested Users" in the sidebar if selectors get messy)
+                // Double check text content to prevent badging unrelated elements
                 if (span.textContent.toLowerCase().includes(currentUrlUser)) {
                     this.addBadge(span);
                 }
@@ -231,3 +284,10 @@ const MutualIndicator = {
         } catch (e) { }
     }
 };
+
+// Register
+if (window.BF_Registry) {
+    window.BF_Registry.registerPlugin(MutualIndicator);
+} else {
+    window.MutualIndicator = MutualIndicator;
+}

@@ -1,9 +1,17 @@
+// src/plugins/oneko.js
+
 const Oneko = {
+    // --- 1. Metadata for Registry ---
+    id: 'oneko',
+    name: 'Oneko 🐈',
+    description: 'Adds a retro desktop cat that chases your cursor.',
+    defaultEnabled: false,
+
+    // --- 2. State Variables ---
     isActive: false,
     nekoEl: null,
     interval: null,
 
-    // State variables matching the original script
     nekoPosX: 32,
     nekoPosY: 32,
     mousePosX: 0,
@@ -13,7 +21,6 @@ const Oneko = {
     idleAnimation: null,
     idleAnimationFrame: 0,
 
-    // Constants from original
     nekoSpeed: 7,
     spriteSets: {
         idle: [[-3, -3]],
@@ -34,6 +41,36 @@ const Oneko = {
         W: [[-4, -2], [-4, -3]],
         NW: [[-1, 0], [-1, -1]],
     },
+
+    // --- 3. UI Renderer (Registry Pattern) ---
+    renderSettings() {
+        const container = document.createElement('div');
+        container.className = 'bf-plugin-card';
+
+        // Check standardized storage key: bf_plugin_enabled_<id>
+        const isEnabled = localStorage.getItem(`bf_plugin_enabled_${this.id}`) === 'true';
+
+        container.innerHTML = `
+            <div style="flex: 1;">
+                <div style="font-weight:bold;">${this.name}</div>
+                <div style="font-size:12px; color:var(--bf-subtext);">${this.description}</div>
+            </div>
+            <input type="checkbox" class="bf-toggle">
+        `;
+
+        const toggle = container.querySelector('.bf-toggle');
+        toggle.checked = isEnabled;
+
+        toggle.onchange = (e) => {
+            const active = e.target.checked;
+            localStorage.setItem(`bf_plugin_enabled_${this.id}`, active);
+            active ? this.enable() : this.disable();
+        };
+
+        return container;
+    },
+
+    // --- 4. Core Logic ---
 
     enable() {
         if (this.isActive) return;
@@ -98,8 +135,6 @@ const Oneko = {
     onAnimationFrame() {
         if (!this.isActive) return;
         this.interval = window.requestAnimationFrame(this.onAnimationFrame.bind(this));
-
-        const now = Date.now();
 
         // Logic from original: update based on time? 
         // Original logic just runs every frame, so we will too.
@@ -196,4 +231,9 @@ const Oneko = {
     }
 };
 
-window.Oneko = Oneko;
+// Register with Core
+if (window.BF_Registry) {
+    window.BF_Registry.registerPlugin(Oneko);
+} else {
+    window.Oneko = Oneko;
+}

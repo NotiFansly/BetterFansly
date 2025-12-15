@@ -1,6 +1,13 @@
 // src/plugins/miniplayer.js
 
 const Miniplayer = {
+    // --- 1. Registry Metadata ---
+    id: 'miniplayer',
+    name: 'Stream Miniplayer',
+    description: 'PiP mode, draggable player, and auto-quality selector for streams.',
+    defaultEnabled: false,
+
+    // --- 2. State Variables ---
     isActive: false,
     container: null,
     hls: null,
@@ -18,7 +25,38 @@ const Miniplayer = {
         volume: 0.5
     },
 
-    // --- Main Public Methods ---
+    // --- 3. UI Renderer (Registry Pattern) ---
+    renderSettings() {
+        const container = document.createElement('div');
+        container.className = 'bf-plugin-card';
+
+        // Check standardized storage key: bf_plugin_enabled_<id>
+        const isEnabled = localStorage.getItem(`bf_plugin_enabled_${this.id}`) === 'true';
+
+        container.innerHTML = `
+            <div style="flex: 1;">
+                <div style="font-weight:bold;">${this.name}</div>
+                <div style="font-size:12px; color:var(--bf-subtext);">${this.description}</div>
+            </div>
+            <input type="checkbox" class="bf-toggle">
+        `;
+
+        const toggle = container.querySelector('.bf-toggle');
+        toggle.checked = isEnabled;
+
+        toggle.onchange = (e) => {
+            const active = e.target.checked;
+            localStorage.setItem(`bf_plugin_enabled_${this.id}`, active);
+            // Legacy key support (optional, but good for migrating users)
+            localStorage.setItem('bf_miniplayer_enabled', active);
+
+            active ? this.enable() : this.disable();
+        };
+
+        return container;
+    },
+
+    // --- 4. Core Logic ---
 
     enable() {
         if (this.isActive) return;
@@ -245,8 +283,6 @@ const Miniplayer = {
             const playbackUrl = streamRes.response.stream.playbackUrl;
             this.buildPlayerUI(playbackUrl, username);
 
-            // Optional: Hide the button once playing to reduce clutter?
-            // For now, reset text
             if (btn) btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
 
         } catch (e) {
@@ -397,3 +433,10 @@ const Miniplayer = {
         }
     }
 };
+
+// Register
+if (window.BF_Registry) {
+    window.BF_Registry.registerPlugin(Miniplayer);
+} else {
+    window.Miniplayer = Miniplayer;
+}
