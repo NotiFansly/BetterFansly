@@ -36,6 +36,11 @@ const UI = {
             GhostMode.injectInterceptor();
         }
 
+        if (localStorage.getItem('bf_ghost_read') === null) localStorage.setItem('bf_ghost_read', 'true');
+        if (localStorage.getItem('bf_ghost_story') === null) localStorage.setItem('bf_ghost_story', 'true');
+        if (localStorage.getItem('bf_ghost_typing') === null) localStorage.setItem('bf_ghost_typing', 'true');
+        if (localStorage.getItem('bf_ghost_status') === null) localStorage.setItem('bf_ghost_status', 'true');
+
         if (localStorage.getItem('bf_translator_enabled') === 'true' && typeof Translator !== 'undefined') {
             Translator.targetLang = localStorage.getItem('bf_translator_lang') || 'en';
             Translator.enable();
@@ -186,12 +191,49 @@ const UI = {
                 <input type="checkbox" class="bf-toggle" id="toggle-mutual" ${localStorage.getItem('bf_mutual_enabled') === 'true' ? 'checked' : ''}>
             </div>
 
-            <div class="bf-plugin-card">
-                <div>
-                    <div style="font-weight:bold;">Ghost Mode 👻</div>
-                    <div style="font-size:12px; color:var(--bf-subtext);">Stealthily read messages, view stories, and type without sending receipts.</div>
+            <div class="bf-plugin-card" style="display:block; transition: all 0.2s;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; gap: 10px; align-items: center;">
+                        <div>
+                            <div style="font-weight:bold;">Ghost Mode 👻</div>
+                            <div style="font-size:12px; color:var(--bf-subtext);">
+                                Stealthily read, view, and type.
+                            </div>
+                        </div>
+                        <!-- Collapse/Expand Button (Visible only when ON) -->
+                        <div id="ghost-settings-btn" style="cursor:pointer; padding:5px; border-radius:4px; display:none; color:var(--bf-accent);">
+                            <i class="fas fa-chevron-down" id="ghost-chevron" style="transition: transform 0.2s;"></i>
+                        </div>
+                    </div>
+                    <input type="checkbox" class="bf-toggle" id="toggle-ghost" ${localStorage.getItem('bf_ghost_mode') === 'true' ? 'checked' : ''}>
                 </div>
-                <input type="checkbox" class="bf-toggle" id="toggle-ghost" ${localStorage.getItem('bf_ghost_mode') === 'true' ? 'checked' : ''}>
+
+                <!-- Sub-Menu (Hidden by default) -->
+                <div id="ghost-submenu" style="display: none; margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--bf-border);">
+                    <div style="font-size: 11px; font-weight: bold; color: var(--bf-subtext); margin-bottom: 10px; text-transform: uppercase;">
+                        Active Protections
+                    </div>
+
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-read" ${localStorage.getItem('bf_ghost_read') !== 'false' ? 'checked' : ''}>
+                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Read Receipts</b> (Messages)</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-story" ${localStorage.getItem('bf_ghost_story') !== 'false' ? 'checked' : ''}>
+                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Story Views</b> (Lurk)</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-typing" ${localStorage.getItem('bf_ghost_typing') !== 'false' ? 'checked' : ''}>
+                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Typing Indicator</b></span>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; margin-bottom: 5px; cursor: pointer;">
+                        <input type="checkbox" class="bf-checkbox" id="sub-ghost-status" ${localStorage.getItem('bf_ghost_status') !== 'false' ? 'checked' : ''}>
+                        <span style="margin-left: 10px; font-size: 13px;">Block <b>Online Status</b> (Appear Offline)</span>
+                    </label>
+                </div>
             </div>
 
             <div class="bf-plugin-card">
@@ -235,9 +277,56 @@ const UI = {
             localStorage.setItem('bf_mutual_enabled', e.target.checked);
             if (typeof MutualIndicator !== 'undefined') e.target.checked ? MutualIndicator.enable() : MutualIndicator.disable();
         };
-        document.getElementById('toggle-ghost').onchange = (e) => {
-            e.target.checked ? GhostMode.enable() : GhostMode.disable();
+
+        const ghostToggle = document.getElementById('toggle-ghost');
+        const ghostBtn = document.getElementById('ghost-settings-btn');
+        const ghostMenu = document.getElementById('ghost-submenu');
+        const ghostChevron = document.getElementById('ghost-chevron');
+
+        // Helper to handle visual state
+        const updateGhostVisuals = (isEnabled) => {
+            if (isEnabled) {
+                ghostBtn.style.display = 'block'; // Show gear/chevron
+            } else {
+                ghostBtn.style.display = 'none';
+                ghostMenu.style.display = 'none'; // Auto-close if disabled
+                ghostChevron.style.transform = 'rotate(0deg)';
+            }
         };
+
+        // Init State
+        updateGhostVisuals(localStorage.getItem('bf_ghost_mode') === 'true');
+
+        // Master Toggle
+        ghostToggle.onchange = (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('bf_ghost_mode', enabled);
+            updateGhostVisuals(enabled);
+
+            if (typeof GhostMode !== 'undefined') {
+                enabled ? GhostMode.enable() : GhostMode.disable();
+            }
+        };
+
+        // Collapse/Expand Toggle
+        ghostBtn.onclick = () => {
+            const isClosed = ghostMenu.style.display === 'none';
+            ghostMenu.style.display = isClosed ? 'block' : 'none';
+            ghostChevron.style.transform = isClosed ? 'rotate(180deg)' : 'rotate(0deg)';
+        };
+
+        // Sub-Toggles
+        const bindGhostSub = (id, key) => {
+            document.getElementById(id).onchange = (e) => {
+                localStorage.setItem(key, e.target.checked);
+            };
+        };
+
+        bindGhostSub('sub-ghost-read', 'bf_ghost_read');
+        bindGhostSub('sub-ghost-story', 'bf_ghost_story');
+        bindGhostSub('sub-ghost-typing', 'bf_ghost_typing');
+        bindGhostSub('sub-ghost-status', 'bf_ghost_status');
+
         document.getElementById('toggle-oneko').onchange = (e) => {
             localStorage.setItem('bf_oneko_enabled', e.target.checked);
             if (typeof Oneko !== 'undefined') e.target.checked ? Oneko.enable() : Oneko.disable();

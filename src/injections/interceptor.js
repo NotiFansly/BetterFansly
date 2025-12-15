@@ -7,17 +7,45 @@
 
     console.log("BetterFansly: Network Interceptor Loaded");
 
+    // Helper to check if a specific feature is enabled
+    // We check the Master Switch (bf_ghost_mode) AND the specific sub-switch
+    function shouldBlock(url) {
+        if (localStorage.getItem('bf_ghost_mode') !== 'true') return false;
+        if (typeof url !== 'string') return false;
+
+        // 1. Read Receipts
+        if (url.includes('/message/ack') && localStorage.getItem('bf_ghost_read') === 'true') {
+            console.log('BetterFansly: 👻 Blocked Read Receipt');
+            return true;
+        }
+
+        // 2. Story Views
+        if (url.includes('/mediastory/view') && localStorage.getItem('bf_ghost_story') === 'true') {
+            console.log('BetterFansly: 👻 Blocked Story View');
+            return true;
+        }
+
+        // 3. Typing Indicators
+        if (url.includes('/message/typing') && localStorage.getItem('bf_ghost_typing') === 'true') {
+            console.log('BetterFansly: 👻 Blocked Typing Indicator');
+            return true;
+        }
+
+        // 4. Online Status (NEW)
+        if (url.includes('/api/v1/status') && localStorage.getItem('bf_ghost_status') === 'true') {
+            console.log('BetterFansly: 👻 Blocked Online Status Update');
+            return true;
+        }
+
+        return false;
+    }
+
     // 1. Override Fetch
     window.fetch = async function(input, init) {
         let url = input;
         if (typeof input === 'object' && input.url) url = input.url;
 
-        // Check if Ghost Mode is active in LocalStorage
-        if (localStorage.getItem('bf_ghost_mode') === 'true' &&
-            typeof url === 'string' &&
-            (url.includes('/message/ack') || url.includes('/mediastory/view') || url.includes('/message/typing'))) {
-
-            console.log('BetterFansly: 👻 Blocked Receipt/Indicator (Fetch)');
+        if (shouldBlock(url)) {
             return new Response(JSON.stringify({ success: true }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }
@@ -33,12 +61,7 @@
     };
 
     window.XMLHttpRequest.prototype.send = function(body) {
-        if (localStorage.getItem('bf_ghost_mode') === 'true' &&
-            this._bf_url &&
-            (this._bf_url.includes('/message/ack') || this._bf_url.includes('/mediastory/view') || this._bf_url.includes('/message/typing'))) {
-
-            console.log('BetterFansly: 👻 Blocked Receipt/Indicator (XHR)');
-
+        if (this._bf_url && shouldBlock(this._bf_url)) {
             // Fake success
             Object.defineProperty(this, 'readyState', { value: 4 });
             Object.defineProperty(this, 'status', { value: 200 });

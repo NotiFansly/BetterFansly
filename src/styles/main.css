@@ -232,3 +232,32 @@
 .bf-content::-webkit-scrollbar-thumb:hover {
     background: var(--bf-subtext);
 }
+
+/* Standard Checkbox Styling */
+.bf-checkbox {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--bf-card-bg);
+    border: 1px solid var(--bf-border);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.bf-checkbox:checked {
+    background: var(--bf-accent);
+    border-color: var(--bf-accent);
+}
+
+.bf-checkbox:checked::after {
+    content: '✔';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--primary-bg, #fff);
+    font-size: 12px;
+    font-weight: bold;
+}
