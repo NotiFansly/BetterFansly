@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "1.9.6",
+    "version": "1.9.7",
     "description": "Power-user client modification for Fansly with themes, utilities, and privacy tools",
     "action": {
         "default_icon": {
@@ -50,6 +50,7 @@
                 "src/plugins/translator.js",
                 "src/plugins/oneko.js",
                 "src/plugins/zenMode.js",
+                "src/plugins/userNotes.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
             ],
