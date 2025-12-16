@@ -231,44 +231,76 @@ const Translator = {
                 opacity: 1;
                 text-decoration: underline;
             }
-            /* Compact Result Box */
+
+            /* --- Result Box Styling --- */
             .bf-translator-result {
                 margin-top: 6px;
                 padding: 6px 8px;
                 background: var(--dark-2);
                 border-left: 3px solid var(--blue-1);
-                border-radius: 4px;
+                border-radius: 6px;
                 font-size: 0.95em;
                 color: var(--font-1);
                 animation: fadeIn 0.2s;
                 user-select: text;
-                white-space: pre-wrap;
                 position: relative;
+
+                /* Make sure it hugs its content */
+                display: inline-block;
+                height: auto !important;
+                min-height: 0 !important;
+                line-height: 1.2;          /* keep lines tight */
+                white-space: normal;       /* <-- IMPORTANT: let children control wrapping */
+
+                width: fit-content;
+                max-width: 100%;
+                min-width: 120px;
+                box-sizing: border-box;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             }
+
+            /* New: only the text uses pre-wrap */
+            .bf-translator-result-text {
+                white-space: pre-wrap;
+            }
+
             /* Header for Close Button */
             .bf-result-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 4px;
-                border-bottom: 1px solid rgba(255,255,255,0.1);
+                margin-bottom: 4px; /* was 6px */
                 padding-bottom: 2px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                gap: 10px;
             }
+
+            .bf-translator-result > div:last-child {
+                margin-top: 0 !important;
+            }
+
             .bf-lang-label {
-                font-size: 9px; 
+                font-size: 10px; 
                 color: var(--font-tint-2); 
                 text-transform: uppercase;
                 font-weight: bold;
+                display: flex;
+                align-items: center;
+                gap: 5px;
             }
+
             .bf-close-btn {
                 cursor: pointer;
                 color: var(--font-tint-2);
-                font-size: 10px;
-                padding: 0 4px;
+                font-size: 11px;
+                opacity: 0.6;
+                transition: 0.2s;
             }
             .bf-close-btn:hover {
                 color: #f38ba8; /* Red hover */
+                opacity: 1;
             }
+
             .bf-spinner {
                 display: inline-block;
                 animation: spin 1s linear infinite;
@@ -376,12 +408,15 @@ const Translator = {
             resultBox.className = 'bf-translator-result';
 
             resultBox.innerHTML = `
-                <div class="bf-result-header">
-                    <span class="bf-lang-label">Translated (${this.languages[this.targetLang]})</span>
-                    <span class="bf-close-btn"><i class="fas fa-times"></i></span>
-                </div>
-                <div>${result}</div>
-            `;
+            <div class="bf-result-header">
+                <span class="bf-lang-label">
+                    <i class="fas fa-globe"></i> 
+                    Translated (${this.languages[this.targetLang]})
+                </span>
+                <span class="bf-close-btn"><i class="fas fa-times"></i></span>
+            </div>
+            <div class="bf-translator-result-text">${result}</div>
+        `;
 
             resultBox.querySelector('.bf-close-btn').onclick = (e) => {
                 e.stopPropagation();
