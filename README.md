@@ -19,6 +19,7 @@
 *   **Theme Presets:** Built-in support for **Catppuccin** (all 4 flavors) and **Dracula**, complete with customizable accent colors.
 *   **Theme Engine:** Force dark/light modes or inject your own custom CSS.
 *   **Remote Themes:** Load CSS stylesheets dynamically from external URLs (e.g., GitHub Gists).
+*   **Zen Mode:** Distraction-free browsing mode that hides sidebars, suggestions, stories, and online bars. Expands content to full width and can be toggled instantly with a keyboard shortcut (Ctrl+Shift+Z / Cmd+Shift+Z).
 
 ### Privacy & Filtering
 *   **Ghost Mode:** Read direct messages, type replies, and view stories without sending "Seen" or "Typing" receipts to the other user.
@@ -32,6 +33,7 @@
 *   **Mutual Indicator:** Displays a "Follows You" badge next to usernames in the feed, comments, and profile headers.
 *   **Oneko:** Adds a retro pixel-art cat that chases your mouse cursor around the screen.
 *   **Account Migration:** Export your following list and subscriptions to a JSON file and import them to a new account automatically.
+*   **User Notes:** Attach private, local-only notes to any user. Notes appear on profiles, timeline posts, and messages, with quick-edit icons, previews, and sidebar tooltips.
 
 ### Extensibility
 *   **Plugin System:** Enable or disable core features individually.
