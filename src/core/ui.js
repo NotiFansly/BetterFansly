@@ -85,6 +85,10 @@ const UI = {
                         <img src="${logoUrl}" style="width: 32px; height: 32px; margin-right: 10px;">
                         <span>BetterFansly</span>
                     </div>
+
+                    <button class="bf-tab-btn" id="bf-mobile-nav-toggle" style="display:none;">
+                        <i class="fas fa-bars"></i> Menu
+                    </button>
                     
                     <div class="bf-sidebar-label">General</div>
                     <button class="bf-tab-btn active" data-tab="plugins">Plugins</button>
@@ -113,6 +117,23 @@ const UI = {
 
         document.body.appendChild(backdrop);
 
+        // Mobile nav toggle
+        const toggleBtn = backdrop.querySelector('#bf-mobile-nav-toggle');
+        const sidebar = backdrop.querySelector('.bf-sidebar');
+
+        const setMobileMode = () => {
+            const isMobile = window.matchMedia('(max-width: 480px)').matches;
+            toggleBtn.style.display = isMobile ? 'block' : 'none';
+
+            // On mobile, start collapsed (content first)
+            if (isMobile) sidebar.classList.add('bf-collapsed');
+            else sidebar.classList.remove('bf-collapsed');
+        };
+
+        toggleBtn.onclick = () => sidebar.classList.toggle('bf-collapsed');
+        window.addEventListener('resize', setMobileMode);
+        setMobileMode();
+
         // --- DYNAMIC SIDEBAR GENERATION ---
         const toolContainer = backdrop.querySelector('#bf-sidebar-tools');
         window.BF_Registry.tools.forEach(tool => {
@@ -134,6 +155,9 @@ const UI = {
                 tabs.forEach(x => x.classList.remove('active'));
                 t.classList.add('active');
                 this.renderTab(t.dataset.tab);
+                if (window.matchMedia('(max-width: 480px)').matches) {
+                    backdrop.querySelector('.bf-sidebar')?.classList.add('bf-collapsed');
+                }
             };
         });
 

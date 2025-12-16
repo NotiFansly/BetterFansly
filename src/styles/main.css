@@ -261,3 +261,127 @@
     font-size: 12px;
     font-weight: bold;
 }
+
+
+/* =========================
+   Responsive layout
+   ========================= */
+
+/* Make the modal scale with viewport instead of fixed 800x600 */
+.bf-modal {
+    width: min(800px, calc(100vw - 24px));
+    height: min(600px, calc(100vh - 24px));
+}
+
+/* Avoid iOS "100vh" weirdness; also helps Android chrome */
+.bf-backdrop {
+    min-height: 100svh;
+}
+
+/* Let plugin cards / controls wrap instead of overflowing */
+.bf-plugin-card {
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Inputs in rows should shrink nicely */
+.bf-input,
+.bf-btn,
+.bf-toggle,
+.bf-checkbox {
+    max-width: 100%;
+}
+
+/* ---------- Tablet / small screens ---------- */
+@media (max-width: 768px) {
+
+    /* Turn the modal into a stacked layout */
+    .bf-modal {
+        flex-direction: column;
+        border-radius: 14px;
+    }
+
+    /* Sidebar becomes top bar */
+    .bf-sidebar {
+        width: 100%;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        border-right: none;
+        border-bottom: 1px solid var(--bf-border);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .bf-sidebar-header {
+        margin: 0;
+        padding: 0 8px;
+        white-space: nowrap;
+    }
+
+    .bf-sidebar-label {
+        display: none;
+        /* labels take too much vertical space on mobile */
+    }
+
+    .bf-tab-btn {
+        padding: 10px 12px;
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+    .bf-content {
+        padding: 16px;
+    }
+
+    /* Make the library editor feel usable on mobile */
+    #cp-code {
+        font-size: 12px !important;
+    }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 480px) {
+    .bf-modal {
+        width: calc(100vw - 14px);
+        height: calc(100vh - 14px);
+        border-radius: 12px;
+    }
+
+    .bf-content {
+        padding: 12px;
+    }
+
+    .bf-section-title {
+        font-size: 16px;
+    }
+
+    /* Plugin cards stack their internal rows more cleanly */
+    .bf-plugin-card {
+        align-items: stretch;
+    }
+
+    /* Toggles/buttons don’t get squished off-screen */
+    .bf-toggle {
+        margin-left: auto;
+    }
+}
+
+/* =========================
+   Optional: Miniplayer responsive defaults
+   (doesn't break desktop, just helps small screens)
+   ========================= */
+#fansly-miniplayer-container {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+}
+
+/* Collapsible sidebar on phone */
+@media (max-width: 480px) {
+    .bf-sidebar.bf-collapsed {
+        overflow: hidden;
+        max-height: 56px;
+        /* header + menu button height */
+    }
+}
