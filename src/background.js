@@ -1,5 +1,17 @@
 // src/background.js
 
+chrome.action.onClicked.addListener(async (tab) => {
+    // Only work on Fansly pages
+    if (tab.url && tab.url.includes('fansly.com')) {
+        // Send message to content script to open menu
+        try {
+            await chrome.tabs.sendMessage(tab.id, { type: 'OPEN_MENU' });
+        } catch (error) {
+            console.error('Failed to open menu:', error);
+        }
+    }
+});
+
 // 1. Listen for updates from the UI (install/delete plugins)
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'REGISTER_PLUGINS') {

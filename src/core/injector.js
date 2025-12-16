@@ -1,6 +1,14 @@
 // src/core/injector.js
 //import { UI } from './ui.js';
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'OPEN_MENU') {
+        if (typeof UI !== 'undefined') {
+            UI.openMenu();
+        }
+    }
+});
+
 // Initialize core systems
 if (typeof UI !== 'undefined') {
     UI.init();
