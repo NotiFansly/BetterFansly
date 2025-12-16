@@ -3,7 +3,7 @@
 const ZenMode = {
     // --- 1. Registry Metadata ---
     id: 'zen_mode',
-    name: 'Zen Mode 🧘',
+    name: 'Zen Mode',
     description: 'Distraction-free browsing: hides sidebars, suggestions, and online bars.',
     defaultEnabled: false,
 
