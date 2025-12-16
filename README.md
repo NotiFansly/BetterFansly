@@ -35,6 +35,11 @@
 *   **Oneko:** Adds a retro pixel-art cat that chases your mouse cursor around the screen.
 *   **Account Migration:** Export your following list and subscriptions to a JSON file and import them to a new account automatically.
 *   **User Notes:** Attach private, local-only notes to any user. Notes appear on profiles, timeline posts, and messages, with quick-edit icons, previews, and sidebar tooltips.
+*   **Quick Switcher (Omnibar):** A powerful command palette for power users.
+    *   **Instant Navigation:** Jump to any page, setting, or followed creator without using your mouse.
+    *   **Global Hotkey:** Default is `Alt+K`, but you can record your own custom keybind in the Plugins tab.
+    *   **User Search:** Type `@` followed by a username (e.g., `@bun`) to search the entire Fansly database instantly with avatar previews.
+    *   **Smart Routing:** Uses soft navigation to switch pages instantly without reloading the browser.
 
 ### Extensibility
 *   **Plugin System:** Enable or disable core features individually.
