@@ -22,6 +22,7 @@
 *   **Zen Mode:** Distraction-free browsing mode that hides sidebars, suggestions, stories, and online bars. Expands content to full width and can be toggled instantly with a keyboard shortcut (Ctrl+Shift+Z / Cmd+Shift+Z).
 
 ### Privacy & Filtering
+*   **Boss Key:** Instantly cover your screen with a fake "quarterly report" spreadsheet by pressing `Esc`. Perfect for panic situations or semi-public browsing.
 *   **Ghost Mode:** Read direct messages, type replies, and view stories without sending "Seen" or "Typing" receipts to the other user.
 *   **Keyword Muter:** Automatically hide posts from your feed that contain specific words or phrases.
 *   **Client-Side Processing:** All filtering happens locally on your machine; no data is sent to third parties.
