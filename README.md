@@ -30,6 +30,7 @@
 ### Tools & Utilities
 *   **Chat Translator:** Native translation integration for DMs and Feed posts. Translate incoming content with one click, and instantly translate your outgoing messages to your selected language (supports English, Spanish, French, German, Russian, Chinese, Japanese, and Korean).
 *   **Stream Miniplayer:** A persistent, draggable Picture-in-Picture video player. Watch streams or videos while browsing other pages. Includes transparency mode and auto-quality selection.
+*   **Account Manager:** Seamlessly switch between multiple accounts. Store your alt tokens locally and swap sessions instantly without logging out. Includes avatar previews and active session detection.
 *   **Spending Tracker:** Visualize your spending habits. View total spend, a leaderboard of your top supported creators, and a yearly breakdown.
 *   **Mutual Indicator:** Displays a "Follows You" badge next to usernames in the feed, comments, and profile headers.
 *   **Oneko:** Adds a retro pixel-art cat that chases your mouse cursor around the screen.
@@ -64,7 +65,7 @@
 1.  Click the **BetterFansly** button in the sidebar (mobile/desktop) or the main Settings list.
 2.  **Plugins Tab:** Toggle features like Ghost Mode, Translator, Oneko, Miniplayer, or Mutual Indicator on/off.
 3.  **Themes Tab:** Select a preset (Catppuccin or Dracula) or paste your own CSS.
-4.  **Tools Tab:** Access the Spending Tracker and Backup utilities.
+4.  **Tools Tab:** Access the Account Manager, Spending Tracker, and Backup utilities.
 
 ---
 
