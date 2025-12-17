@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BetterFansly",
-    "version": "2.1.1",
+    "version": "2.2.0",
     "description": "Power-user client modification for Fansly with themes, utilities, and privacy tools",
     "action": {
         "default_icon": {
@@ -53,6 +53,7 @@
                 "src/plugins/userNotes.js",
                 "src/plugins/bossKey.js",
                 "src/plugins/omnibar.js",
+                "src/plugins/accountManager.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
             ],
