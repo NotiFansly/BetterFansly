@@ -1,4 +1,13 @@
 // src/background.js
+//
+
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+    if (details.frameId === 0 && details.url.includes("fans.ly")) {
+        const newUrl = details.url.replace("fans.ly", "fansly.com");
+        console.log(`BetterFansly: Redirecting legacy link ${details.url} -> ${newUrl}`);
+        chrome.tabs.update(details.tabId, { url: newUrl });
+    }
+}, { url: [{ hostContains: 'fans.ly' }] });
 
 chrome.action.onClicked.addListener(async (tab) => {
     // Only work on Fansly pages
