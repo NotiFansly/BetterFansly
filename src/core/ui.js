@@ -502,7 +502,7 @@ const UI = {
                         </a>
 
                         <!-- OxaPay Button -->
-                        <a href="https://pay.oxapay.com/11901671" target="_blank" style="transition: transform 0.2s; display: block;">
+                        <a href="https://pay.oxapay.com/17194452" target="_blank" style="transition: transform 0.2s; display: block;">
                             <img src="https://oxapay.com/donation-buttons/13.png" alt="OxaPay Donation Button" style="width: 160px; height: auto; display: block;" />
                         </a>
                     </div>
