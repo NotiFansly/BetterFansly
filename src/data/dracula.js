@@ -168,6 +168,13 @@ window.BF_Themes['dracula'] = {
             app-messaging-group .dark-blue-1 {
                 color: ${C.text} !important;
             }
+
+            /* Chat inputs (message input + material reply input) */
+            /* Keep typed text normal, not accent */
+            .message-input-container textarea,
+            .material-input textarea {
+                color: ${C.text} !important;
+            }
             
             app-chat-room-goal .progress-overlay {
                 background-color: ${accent} !important;
