@@ -151,6 +151,11 @@ window.BF_Themes['dracula'] = {
             .router-link-active, .active-link {
                 color: ${accent} !important;
             }
+
+            .timestamp .blue-1,
+            .timestamp.blue-1 {
+                color: ${accent} !important;
+            }
             
             app-chat-room-goal .progress-overlay {
                 background-color: ${accent} !important;

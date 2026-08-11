@@ -171,6 +171,12 @@ window.BF_Themes['catppuccin'] = {
             .router-link-active, .active-link {
                 color: ${accent} !important;
             }
+
+            /* 6. Message read receipts (.blue-1 = "read" state checkmarks) */
+            .timestamp .blue-1,
+            .timestamp.blue-1 {
+                color: ${accent} !important;
+            }
             
             app-chat-room-goal .progress-overlay {
                 background-color: ${accent} !important;
