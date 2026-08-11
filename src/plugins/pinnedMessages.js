@@ -20,6 +20,7 @@ const PinnedMessages = {
     lastPreviewRefresh: 0,
     _refreshing: false,
     _refreshingPreview: false,
+    _pinQueue: null,
 
     // --- 3. UI Renderer ---
     renderSettings() {
@@ -108,6 +109,13 @@ const PinnedMessages = {
             .bf-pin-name { font-size: 14px; color: var(--bf-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .bf-pin-preview { font-size: 12px; color: var(--bf-subtext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .bf-pin-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+            .bf-pin-meta .badge-container { margin: 0; }
+            .bf-pin-meta .badge {
+                min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px;
+                border-radius: 9px; text-align: center; border: none;
+                background: var(--bf-accent, #f43f5e); color: #fff;
+                font-size: 11px; font-weight: 700;
+            }
             .bf-pin-time { font-size: 11px; color: var(--bf-subtext); }
             .bf-pin-unpin { font-size: 13px; color: var(--bf-subtext); cursor: pointer; opacity: 0; transition: opacity .15s; }
             .bf-pin-row:hover .bf-pin-unpin { opacity: 1; }
@@ -125,7 +133,7 @@ const PinnedMessages = {
             timeout = setTimeout(() => this.scanPage(), 500);
         });
 
-        this.observer.observe(document.body, { childList: true, subtree: true });
+        this.observer.observe(document.body, { childList: true, subtree: true, characterData: true });
         this.scanPage();
     },
 
@@ -163,6 +171,16 @@ const PinnedMessages = {
     },
 
     injectMenuItem(list) {
+        // Resolve the target at click time: Fansly reuses the same dropdown DOM
+        // element across chats, so a captured groupId would stay stale and toggle
+        // the previous chat. Always re-derive it when the user actually clicks.
+        const onClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const gid = this.getGroupId(list);
+            if (gid) this.togglePin(gid);
+        };
+
         const groupId = this.getGroupId(list);
         if (!groupId) return;
 
@@ -177,6 +195,9 @@ const PinnedMessages = {
             const span = item.querySelector('span');
             if (icon && icon.className !== iconCls) icon.className = iconCls;
             if (span && span.textContent !== label) span.textContent = label;
+            // Re-bind: the same element is reused across chats, so the old
+            // handler's captured groupId would be stale.
+            item.onclick = onClick;
             return;
         }
 
@@ -188,11 +209,7 @@ const PinnedMessages = {
             <span>${label}</span>
         `;
 
-        item.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.togglePin(groupId);
-        };
+        item.onclick = onClick;
 
         list.appendChild(item);
     },
@@ -200,15 +217,14 @@ const PinnedMessages = {
     // --- groupId resolution ---
 
     getGroupId(dropdownList) {
-        const m = location.pathname.match(/\/messages\/(\d+)/);
-        if (m) return m[1];
-
         const container = dropdownList.closest('.more-dropdown');
         const link = container ? container.querySelector('a[href*="/messages/"]') : null;
         if (link) {
             const mm = link.getAttribute('href').match(/\/messages\/([^\/?#]+)/);
             if (mm) return mm[1];
         }
+        const m = location.pathname.match(/\/messages\/(\d+)/);
+        if (m) return m[1];
         return null;
     },
 
@@ -227,23 +243,46 @@ const PinnedMessages = {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(pins));
     },
 
+    // Serialize every pins WRITE so async refreshes never clobber a pin added
+    // by a concurrent one. Only fast, synchronous read-modify-write belongs
+    // inside; all network work must happen before calling updatePins.
+    updatePins(updater) {
+        this._pinQueue = (this._pinQueue || Promise.resolve()).then(
+            () => this._applyUpdate(updater),
+            () => this._applyUpdate(updater)
+        );
+        return this._pinQueue;
+    },
+
+    async _applyUpdate(updater) {
+        const pins = this.getPins();
+        await updater(pins);
+        this.savePins(pins);
+    },
+
     isPinned(groupId) {
         return this.getPins().some(p => String(p.groupId) === String(groupId));
     },
 
     async togglePin(groupId) {
         groupId = String(groupId);
-        let pins = this.getPins();
-        const idx = pins.findIndex(p => String(p.groupId) === groupId);
 
-        if (idx >= 0) {
-            pins.splice(idx, 1);
-        } else {
-            const contact = await this.captureContact(groupId);
-            pins.push({ groupId, ...contact });
-        }
+        // Capture contact data OUTSIDE the write queue: it does slow network
+        // work and must never block (or be blocked by) other pin operations.
+        const isPinnedNow = this.isPinned(groupId);
 
-        this.savePins(pins);
+        const contact = isPinnedNow ? null : await this.captureContact(groupId).catch(() => null);
+
+        await this.updatePins(pins => {
+            const idx = pins.findIndex(p => String(p.groupId) === groupId);
+            if (idx >= 0) {
+                pins.splice(idx, 1);
+            } else if (contact) {
+                pins.push({ groupId, ...contact });
+            }
+        });
+
+        this.lastSig = null;
         this.scanPage();
     },
 
@@ -310,13 +349,21 @@ const PinnedMessages = {
         }
     },
 
+    // Fetch with a hard timeout so a hung request can never wedge the pin queue.
+    fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        return fetch(url, { ...options, signal: controller.signal })
+            .finally(() => clearTimeout(timer));
+    },
+
     async fetchAccount(username) {
         if (!username) return null;
         const session = this.getSession();
         if (!session) return null;
         const headers = { 'Content-Type': 'application/json', Authorization: session.token };
 
-        const res = await fetch(`https://apiv3.fansly.com/api/v1/account?usernames=${encodeURIComponent(username)}&ngsw-bypass=true`, { headers });
+        const res = await this.fetchWithTimeout(`https://apiv3.fansly.com/api/v1/account?usernames=${encodeURIComponent(username)}&ngsw-bypass=true`, { headers });
         if (!res.ok) return null;
         const json = await res.json();
         const acc = json?.response?.[0];
@@ -341,7 +388,7 @@ const PinnedMessages = {
         const results = [];
         for (let i = 0; i < ids.length; i += this.BATCH_SIZE) {
             const batch = ids.slice(i, i + this.BATCH_SIZE);
-            const res = await fetch(
+            const res = await this.fetchWithTimeout(
                 `https://apiv3.fansly.com/api/v1/account?ids=${batch.map(encodeURIComponent).join(',')}&ngsw-bypass=true`,
                 { headers }
             );
@@ -361,7 +408,7 @@ const PinnedMessages = {
 
     // Fetch the most recent message in a conversation
     async fetchLatestMessage(groupId, session) {
-        const res = await fetch(
+        const res = await this.fetchWithTimeout(
             `https://apiv3.fansly.com/api/v1/message?groupId=${encodeURIComponent(groupId)}&limit=1&ngsw-bypass=true`,
             { headers: { Authorization: session.token } }
         );
@@ -401,7 +448,6 @@ const PinnedMessages = {
         if (weeks < 5) return `${weeks}w`;
         return new Date(ms).toLocaleDateString();
     },
-
     // Refresh stored pin data (accountId resolution + fresh display name / PFP URL)
     async refreshPinData() {
         if (this._refreshing) return;
@@ -410,31 +456,35 @@ const PinnedMessages = {
             const pins = this.getPins();
             if (!pins.length) return;
 
-            // Backfill accountId for pins stored before this revamp
-            for (const pin of pins) {
-                if (pin.accountId || !pin.username) continue;
+            // Fetch account data first (outside the write queue)...
+            const byId = new Map();
+            const byUsername = new Map();
+
+            await Promise.all(pins.map(async pin => {
+                // Backfill accountId for pins stored before this revamp
+                if (pin.accountId || !pin.username) return;
                 const acc = await this.fetchAccount(pin.username).catch(() => null);
-                if (acc && acc.id) {
-                    pin.accountId = acc.id;
-                    if (acc.displayName) pin.displayName = acc.displayName;
-                    if (acc.avatarUrl) pin.avatar = acc.avatarUrl;
-                }
-            }
+                if (acc && acc.id) byUsername.set(pin.username, acc);
+            }));
 
             const ids = [...new Set(pins.map(p => p.accountId).filter(Boolean))];
             if (ids.length) {
                 const accounts = await this.fetchAccountsByIds(ids).catch(() => []);
-                const byId = new Map(accounts.map(a => [a.id, a]));
-                pins.forEach(pin => {
-                    const acc = byId.get(pin.accountId);
+                accounts.forEach(a => byId.set(a.id, a));
+            }
+
+            // ...then commit one fast, synchronous update against fresh pins.
+            await this.updatePins(currentPins => {
+                currentPins.forEach(pin => {
+                    let acc = pin.accountId ? byId.get(pin.accountId) : null;
+                    if (!acc && pin.username) acc = byUsername.get(pin.username);
                     if (!acc) return;
+                    pin.accountId = acc.id || pin.accountId;
                     pin.username = acc.username || pin.username;
                     pin.displayName = acc.displayName || pin.displayName;
                     if (acc.avatarUrl) pin.avatar = acc.avatarUrl;
                 });
-            }
-
-            this.savePins(pins);
+            });
             this.lastSig = null;
             this.renderPinnedSection();
         } finally {
@@ -442,29 +492,91 @@ const PinnedMessages = {
         }
     },
 
-    // Refresh the latest-message preview for each pinned conversation via the API
+    // Refresh the latest-message preview + unread counts for pinned conversations via the API
     async refreshPreviewData() {
         if (this._refreshingPreview) return;
         this._refreshingPreview = true;
         try {
-            const pins = this.getPins();
-            if (!pins.length) return;
             const session = this.getSession();
             if (!session) return;
+            const pins = this.getPins();
+            if (!pins.length) return;
 
+            // Fetch everything first (outside the write queue)...
+            const previews = new Map();
             await Promise.all(pins.map(async pin => {
                 const msg = await this.fetchLatestMessage(pin.groupId, session).catch(() => null);
                 if (!msg) return;
-                pin.preview = this.messagePreview(msg);
-                pin.previewAt = msg.createdAt ? msg.createdAt * 1000 : Date.now();
+                previews.set(String(pin.groupId), {
+                    preview: this.messagePreview(msg),
+                    previewAt: msg.createdAt ? msg.createdAt * 1000 : Date.now()
+                });
             }));
 
-            this.savePins(pins);
+            // Unread counts for all pinned conversations via the API
+            const unread = await this.fetchUnreadCounts(pins, session).catch(() => null);
+
+            // ...then commit one fast, synchronous update against fresh pins.
+            await this.updatePins(currentPins => {
+                currentPins.forEach(pin => {
+                    const up = previews.get(String(pin.groupId));
+                    if (up) {
+                        pin.preview = up.preview;
+                        pin.previewAt = up.previewAt;
+                    }
+                    if (unread && unread.has(String(pin.groupId))) {
+                        pin.unread = unread.get(String(pin.groupId));
+                    }
+                });
+            });
             this.lastSig = null;
             this.renderPinnedSection();
         } finally {
             this._refreshingPreview = false;
         }
+    },
+
+    // Paginate message/unread and count readAt===null interactions per pinned group.
+    // Stops once a page contains no entries for any pinned group (their unread is exhausted).
+    // Returns a Map<groupId, count> capped at 99 (null on failure); does NOT mutate pins.
+    async fetchUnreadCounts(pins, session) {
+        const counts = new Map(pins.map(p => [String(p.groupId), 0]));
+        const wanted = new Set(counts.keys());
+        let before = null;
+        const pageSize = 100;
+
+        for (let page = 0; page < 20; page++) {
+            let url = `https://apiv3.fansly.com/api/v1/message/unread?limit=${pageSize}&offset=0&before=0&ngsw-bypass=true`;
+            if (before) url = `https://apiv3.fansly.com/api/v1/message/unread?limit=${pageSize}&offset=0&before=${encodeURIComponent(before)}&ngsw-bypass=true`;
+
+            const res = await this.fetchWithTimeout(url, { headers: { Authorization: session.token } });
+            if (!res.ok) return null;
+
+            const json = await res.json();
+            const interactions = (json?.response?.messageInteractions) || [];
+            if (interactions.length === 0) break;
+
+            let hit = false;
+            interactions.forEach(it => {
+                const gid = String(it.groupId);
+                if (wanted.has(gid) && it.readAt === null) {
+                    counts.set(gid, Math.min(counts.get(gid) + 1, 99));
+                    hit = true;
+                }
+            });
+
+            // Stop when we've passed all pinned groups' unread entries
+            if (!hit) break;
+            before = interactions[interactions.length - 1].messageId;
+        }
+
+        return counts;
+    },
+
+    formatUnread(n) {
+        const num = Number(n);
+        if (!Number.isFinite(num) || num <= 0) return '';
+        return num > 99 ? '99+' : String(num);
     },
 
     // Pick the largest landscape avatar variant
@@ -506,12 +618,14 @@ const PinnedMessages = {
             const gid = m[1];
             const img = a.querySelector('img.image.cover') || a.querySelector('.message-avatar img');
             const link = a.querySelector('app-account-username a[href^="/"]');
+            const badge = a.querySelector('.badge-container .badge');
             rows.set(gid, {
                 username: link ? (link.getAttribute('href') || '').replace(/^\/+/, '').split(/[?#]/)[0].split('/')[0] : '',
                 displayName: (a.querySelector('.display-name') || {}).textContent?.trim() || '',
                 avatar: img ? (img.src || img.getAttribute('src') || '') : '',
                 preview: (a.querySelector('.eclipse') || {}).textContent?.trim() || '',
-                time: (a.querySelector('.message-time') || {}).textContent?.trim() || ''
+                time: (a.querySelector('.message-time') || {}).textContent?.trim() || '',
+                unread: badge ? badge.textContent.trim() : ''
             });
         });
         return rows;
@@ -520,6 +634,17 @@ const PinnedMessages = {
     renderPinnedSection() {
         if (!location.pathname.startsWith('/messages')) return;
 
+        // Angular swaps the list DOM out from under us during re-renders;
+        // bail and let the next observer pass retry instead of throwing.
+        try {
+            this._renderPinnedSection();
+        } catch (e) {
+            this.lastSig = null;
+            console.warn('Pinned Conversations: render deferred:', e);
+        }
+    },
+
+    _renderPinnedSection() {
         const messageList = document.querySelector('.messages-list-wrapper .message-list');
         if (!messageList) return;
         const parent = messageList.parentNode;
@@ -528,19 +653,10 @@ const PinnedMessages = {
         const pins = this.getPins();
         const rows = this.buildRowsMap();
 
-        // Hide pinned conversations from the main list (or restore if unpinned)
-        document.querySelectorAll('.messages-list-wrapper .message-list > a').forEach(a => {
-            const m = a.getAttribute('href').match(/\/messages\/(\d+)/);
-            if (m && this.isPinned(m[1])) {
-                a.style.display = 'none';
-            } else {
-                a.style.display = '';
-            }
-        });
-
-        // Remove section entirely when there are no pins
+        // Remove section entirely when there are no pins (and restore the list)
         let section = parent.querySelector('.bf-pinned-section');
         if (pins.length === 0) {
+            this.syncListVisibility();
             if (section) section.remove();
             this.lastSig = null;
             return;
@@ -551,15 +667,23 @@ const PinnedMessages = {
             const r = rows.get(String(p.groupId));
             const preview = (r && r.preview) || p.preview || '';
             const time = (r && r.time) || (p.previewAt ? this.formatTime(p.previewAt) : '');
-            return `${p.groupId}|${(r && r.username) || p.username || ''}|${(r && r.displayName) || p.displayName || ''}|${preview}|${time}`;
+            const unread = (r && r.unread) || this.formatUnread(p.unread) || '';
+            return `${p.groupId}|${(r && r.username) || p.username || ''}|${(r && r.displayName) || p.displayName || ''}|${preview}|${time}|${unread}`;
         }).join(';');
         if (sig === this.lastSig && section) return;
         this.lastSig = sig;
 
         if (!section) {
+            // Re-verify freshness right before inserting: the list node may have
+            // been replaced by Angular, making the captured parent stale.
+            const freshParent = messageList.parentNode;
+            if (!freshParent || !freshParent.contains(messageList)) {
+                this.lastSig = null;
+                return;
+            }
             section = document.createElement('div');
             section.className = 'bf-pinned-section';
-            parent.insertBefore(section, messageList);
+            freshParent.insertBefore(section, messageList);
         }
 
         section.innerHTML = `
@@ -574,11 +698,16 @@ const PinnedMessages = {
             const username = r.username || pin.username || '';
             const displayName = r.displayName || pin.displayName || username || gid;
             const letter = displayName.charAt(0).toUpperCase() || '#';
-            const avatar = (r.avatar || pin.avatar)
-                ? `<img src="${this.escapeHtml(r.avatar || pin.avatar)}" alt="">`
+            const avatarSrc = pin.avatar || r.avatar || '';
+            const avatar = avatarSrc
+                ? `<img src="${this.escapeHtml(avatarSrc)}" alt="">`
                 : `<span>${this.escapeHtml(letter)}</span>`;
             const preview = (r.preview || pin.preview || '').trim();
             const time = (r.time || (pin.previewAt ? this.formatTime(pin.previewAt) : '') || '').trim();
+            const unread = (r.unread || this.formatUnread(pin.unread) || '').trim();
+            const badgeHtml = unread
+                ? `<div class="badge-container flex-row"><div class="badge">${this.escapeHtml(unread)}</div></div>`
+                : '';
 
             const row = document.createElement('a');
             row.className = 'bf-pin-row';
@@ -591,6 +720,7 @@ const PinnedMessages = {
                 </div>
                 <div class="bf-pin-meta">
                     <div class="bf-pin-time">${this.escapeHtml(time)}</div>
+                    ${badgeHtml}
                     <div class="bf-pin-unpin" title="Unpin"><i class="fas fa-thumbtack"></i></div>
                 </div>
             `;
@@ -607,6 +737,18 @@ const PinnedMessages = {
             };
 
             section.appendChild(row);
+        });
+
+        // Only hide duplicate rows from the main list once the section is in
+        // place, so a deferred render never leaves chats invisible.
+        this.syncListVisibility();
+    },
+
+    // Hide pinned conversations from the main list (or restore if unpinned)
+    syncListVisibility() {
+        document.querySelectorAll('.messages-list-wrapper .message-list > a').forEach(a => {
+            const m = a.getAttribute('href').match(/\/messages\/(\d+)/);
+            a.style.display = (m && this.isPinned(m[1])) ? 'none' : '';
         });
     },
 
