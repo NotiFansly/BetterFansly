@@ -30,7 +30,8 @@
     ],
     "host_permissions": [
         "https://fansly.com/*",
-        "https://fans.ly/*"
+        "https://fans.ly/*",
+        "https://apiv3.fansly.com/*"
     ],
     "content_scripts": [
         {
@@ -55,6 +56,7 @@
                 "src/plugins/bossKey.js",
                 "src/plugins/omnibar.js",
                 "src/plugins/accountManager.js",
+                "src/plugins/chatExporter.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
             ],
