@@ -152,8 +152,14 @@ window.BF_Themes['dracula'] = {
                 color: ${accent} !important;
             }
 
+            /* Delivered (no .blue-1) stays neutral grey, never accent */
+            .timestamp .fa-check {
+                color: ${C.overlay1} !important;
+            }
+
+            /* Read (.blue-1) uses accent; higher specificity wins over delivered */
             .timestamp .blue-1,
-            .timestamp.blue-1 {
+            .timestamp .blue-1 .fa-check {
                 color: ${accent} !important;
             }
             

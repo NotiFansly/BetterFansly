@@ -172,9 +172,15 @@ window.BF_Themes['catppuccin'] = {
                 color: ${accent} !important;
             }
 
-            /* 6. Message read receipts (.blue-1 = "read" state checkmarks) */
+            /* 6. Message read receipts */
+            /* Delivered (no .blue-1) stays neutral grey, never accent */
+            .timestamp .fa-check {
+                color: ${C.overlay1} !important;
+            }
+
+            /* Read (.blue-1) uses accent; higher specificity wins over delivered */
             .timestamp .blue-1,
-            .timestamp.blue-1 {
+            .timestamp .blue-1 .fa-check {
                 color: ${accent} !important;
             }
             
