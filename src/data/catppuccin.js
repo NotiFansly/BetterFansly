@@ -183,6 +183,12 @@ window.BF_Themes['catppuccin'] = {
             .timestamp .blue-1 .fa-check {
                 color: ${accent} !important;
             }
+
+            /* 7. Message text (Fansly uses .dark-blue-1 on grouped messages) */
+            /* Keep it normal text color so accent isn't overwhelming */
+            app-messaging-group .dark-blue-1 {
+                color: ${C.text} !important;
+            }
             
             app-chat-room-goal .progress-overlay {
                 background-color: ${accent} !important;
