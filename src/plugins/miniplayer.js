@@ -139,23 +139,6 @@ const Miniplayer = {
             }
             @keyframes bf-fmp-spin { to { transform: rotate(360deg); } }
 
-            /* Start Button - floating fallback (only if no overlay footer found) */
-            #fansly-miniplayer-btn-fallback {
-                position: fixed; bottom: 20px; right: 20px; z-index: 9999;
-                
-                /* THEME INTEGRATION FIX */
-                background: var(--accent-color, #a855f7); /* Use Theme Accent */
-                color: var(--primary-bg, #000);           /* Use Dark Background for Text Contrast */
-                
-                border: 1px solid var(--border-color, transparent);
-                padding: 12px 18px; border-radius: 30px;
-                cursor: pointer; font-weight: bold; 
-                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-                transition: transform 0.2s, opacity 0.2s;
-                font-family: inherit;
-            }
-            #fansly-miniplayer-btn-fallback:hover { transform: translateY(-2px); opacity: 0.9; }
-
             /* Player Container */
             #fansly-miniplayer-container {
                 position: fixed; z-index: 10000; background: #000; 
@@ -231,51 +214,33 @@ const Miniplayer = {
     },
 
     addStartButton() {
-        // Prefer injecting a control button into the video overlay footer,
-        // where the PiP / fullscreen / settings controls live. The footer is
-        // re-rendered by Angular, so (re)inject on every route check.
+        // Inject a control button into the video overlay footer, where the
+        // PiP / fullscreen / settings controls live. The footer is re-rendered
+        // by Angular, so (re)inject on every route check. If the overlay isn't
+        // present (e.g. it fades out), the button simply isn't shown.
         const footer = document.querySelector('.video-overlay .overlay-footer');
-        if (footer && !footer.querySelector('#fansly-miniplayer-btn')) {
-            const btn = document.createElement('div');
-            btn.id = 'fansly-miniplayer-btn';
-            btn.className = 'control-btn blue-1-hover-only bf-start-mini';
-            btn.title = 'Start Miniplayer';
-            btn.innerHTML = '<i class="fa-fw fas fa-tv"></i>';
-            btn.onclick = () => this.startPlayer();
-            // Insert before the "jump to live" indicator (rightmost control)
-            const liveIndicator = footer.querySelector('.live-indicator');
-            if (liveIndicator) footer.insertBefore(btn, liveIndicator);
-            else footer.appendChild(btn);
+        if (!footer) return;
+        if (footer.querySelector('#fansly-miniplayer-btn')) return;
 
-            // Clear any stale floating fallback
-            const fb = document.getElementById('fansly-miniplayer-btn-fallback');
-            if (fb) fb.remove();
-            return;
-        }
-
-        // If the footer is present and already has our button, nothing to do.
-        if (footer) return;
-
-        // Fallback: floating corner button (in case the overlay isn't rendered yet)
-        if (document.getElementById('fansly-miniplayer-btn-fallback')) return;
-        const btn = document.createElement('button');
-        btn.id = 'fansly-miniplayer-btn-fallback';
-        btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
+        const btn = document.createElement('div');
+        btn.id = 'fansly-miniplayer-btn';
+        btn.className = 'control-btn blue-1-hover-only bf-start-mini';
+        btn.title = 'Start Miniplayer';
+        btn.innerHTML = '<i class="fa-fw fas fa-tv"></i>';
         btn.onclick = () => this.startPlayer();
-        document.body.appendChild(btn);
+        // Insert before the "jump to live" indicator (rightmost control)
+        const liveIndicator = footer.querySelector('.live-indicator');
+        if (liveIndicator) footer.insertBefore(btn, liveIndicator);
+        else footer.appendChild(btn);
     },
 
     removeStartButton() {
         const btn = document.getElementById('fansly-miniplayer-btn');
         if (btn) btn.remove();
-        const fb = document.getElementById('fansly-miniplayer-btn-fallback');
-        if (fb) fb.remove();
     },
 
     setStartButtonLoading(loading) {
-        const get = () => document.getElementById('fansly-miniplayer-btn') ||
-                           document.getElementById('fansly-miniplayer-btn-fallback');
-        const btn = get();
+        const btn = document.getElementById('fansly-miniplayer-btn');
         if (!btn) return;
         if (loading) {
             btn.classList.add('loading');
