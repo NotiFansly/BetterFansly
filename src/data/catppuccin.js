@@ -205,6 +205,17 @@ window.BF_Themes['catppuccin'] = {
             app-chat-room-goal {
                 color: ${this.shouldUseDarkText(flavorName, accentName) ? C.base : C.text} !important;
             }
+
+            /* Live goal block text (Fansly updates these sections) */
+            /* The "of" span and labels carry their own colors that clash with
+               the themed background, so force explicit readable colors. */
+            .goals-block .goal-label,
+            .goals-block .goal-amount {
+                color: ${C.text} !important;
+            }
+            .goals-block .goal-of {
+                color: ${C.subtext1} !important;
+            }
         `;
     }
 };
