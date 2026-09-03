@@ -127,8 +127,20 @@ const Miniplayer = {
         const style = document.createElement('style');
         style.id = 'bf-miniplayer-css';
         style.textContent = `
-            /* Start Button */
-            #fansly-miniplayer-btn {
+            /* Start Button - video overlay control (icon) */
+            .bf-start-mini {
+                color: inherit;
+            }
+            .bf-start-mini:hover {
+                color: var(--accent-color, #a855f7) !important;
+            }
+            .bf-start-mini.loading i {
+                animation: bf-fmp-spin 0.8s linear infinite;
+            }
+            @keyframes bf-fmp-spin { to { transform: rotate(360deg); } }
+
+            /* Start Button - floating fallback (only if no overlay footer found) */
+            #fansly-miniplayer-btn-fallback {
                 position: fixed; bottom: 20px; right: 20px; z-index: 9999;
                 
                 /* THEME INTEGRATION FIX */
@@ -142,7 +154,7 @@ const Miniplayer = {
                 transition: transform 0.2s, opacity 0.2s;
                 font-family: inherit;
             }
-            #fansly-miniplayer-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+            #fansly-miniplayer-btn-fallback:hover { transform: translateY(-2px); opacity: 0.9; }
 
             /* Player Container */
             #fansly-miniplayer-container {
@@ -219,9 +231,35 @@ const Miniplayer = {
     },
 
     addStartButton() {
-        if (document.getElementById('fansly-miniplayer-btn')) return;
+        // Prefer injecting a control button into the video overlay footer,
+        // where the PiP / fullscreen / settings controls live. The footer is
+        // re-rendered by Angular, so (re)inject on every route check.
+        const footer = document.querySelector('.video-overlay .overlay-footer');
+        if (footer && !footer.querySelector('#fansly-miniplayer-btn')) {
+            const btn = document.createElement('div');
+            btn.id = 'fansly-miniplayer-btn';
+            btn.className = 'control-btn blue-1-hover-only bf-start-mini';
+            btn.title = 'Start Miniplayer';
+            btn.innerHTML = '<i class="fa-fw fas fa-tv"></i>';
+            btn.onclick = () => this.startPlayer();
+            // Insert before the "jump to live" indicator (rightmost control)
+            const liveIndicator = footer.querySelector('.live-indicator');
+            if (liveIndicator) footer.insertBefore(btn, liveIndicator);
+            else footer.appendChild(btn);
+
+            // Clear any stale floating fallback
+            const fb = document.getElementById('fansly-miniplayer-btn-fallback');
+            if (fb) fb.remove();
+            return;
+        }
+
+        // If the footer is present and already has our button, nothing to do.
+        if (footer) return;
+
+        // Fallback: floating corner button (in case the overlay isn't rendered yet)
+        if (document.getElementById('fansly-miniplayer-btn-fallback')) return;
         const btn = document.createElement('button');
-        btn.id = 'fansly-miniplayer-btn';
+        btn.id = 'fansly-miniplayer-btn-fallback';
         btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
         btn.onclick = () => this.startPlayer();
         document.body.appendChild(btn);
@@ -230,6 +268,22 @@ const Miniplayer = {
     removeStartButton() {
         const btn = document.getElementById('fansly-miniplayer-btn');
         if (btn) btn.remove();
+        const fb = document.getElementById('fansly-miniplayer-btn-fallback');
+        if (fb) fb.remove();
+    },
+
+    setStartButtonLoading(loading) {
+        const get = () => document.getElementById('fansly-miniplayer-btn') ||
+                           document.getElementById('fansly-miniplayer-btn-fallback');
+        const btn = get();
+        if (!btn) return;
+        if (loading) {
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fa-fw fas fa-spinner"></i>';
+        } else {
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fa-fw fas fa-tv"></i>';
+        }
     },
 
     // --- API Logic ---
@@ -264,8 +318,7 @@ const Miniplayer = {
             return;
         }
 
-        const btn = document.getElementById('fansly-miniplayer-btn');
-        if (btn) btn.innerHTML = '⌛ Loading...';
+        this.setStartButtonLoading(true);
 
         try {
             const accRes = await this.fetchApi(`https://apiv3.fansly.com/api/v1/account?usernames=${username}`);
@@ -276,19 +329,19 @@ const Miniplayer = {
 
             if (!streamRes.success || !streamRes.response || !streamRes.response.stream) {
                 alert(`BetterFansly: ${username} is currently offline.`);
-                if (btn) btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
+                this.setStartButtonLoading(false);
                 return;
             }
 
             const playbackUrl = streamRes.response.stream.playbackUrl;
             this.buildPlayerUI(playbackUrl, username);
 
-            if (btn) btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
+            this.setStartButtonLoading(false);
 
         } catch (e) {
             console.error(e);
             alert('Error fetching stream info.');
-            if (btn) btn.innerHTML = '<i class="fa-fw fas fa-tv"></i> Start Miniplayer';
+            this.setStartButtonLoading(false);
         }
     },
 
