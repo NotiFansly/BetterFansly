@@ -58,6 +58,7 @@
                 "src/plugins/accountManager.js",
                 "src/plugins/chatExporter.js",
                 "src/plugins/pinnedMessages.js",
+                "src/plugins/textReplace.js",
                 "src/core/ui.js",
                 "src/core/injector.js"
             ],
