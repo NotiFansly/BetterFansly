@@ -45,6 +45,7 @@
                 "src/data/dracula.js",
                 "src/plugins/miniplayer.js",
                 "src/plugins/backupTool.js",
+                "src/plugins/settingsBackup.js",
                 "src/plugins/mutualIndicator.js",
                 "src/plugins/spendingTracker.js",
                 "src/plugins/keywordMuter.js",
