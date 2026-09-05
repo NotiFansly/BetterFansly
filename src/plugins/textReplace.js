@@ -19,7 +19,7 @@ const TextReplace = {
 
     renderSettings() {
         const container = document.createElement('div');
-        container.className = 'bf-plugin-card';
+        container.className = 'bf-plugin-card bf-tr-card';
 
         const isEnabled = localStorage.getItem(`bf_plugin_enabled_${this.id}`) === 'true';
         this.loadRules();
@@ -298,7 +298,9 @@ const TextReplace = {
         const style = document.createElement('style');
         style.id = 'bf-textreplace-css';
         style.textContent = `
-            .bf-tr-body { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
+            .bf-tr-card { flex-direction: column; align-items: stretch; gap: 10px; }
+            .bf-tr-card > div:first-child { flex: 0 0 auto; }
+            .bf-tr-body { margin-top: 0; width: 100%; display: flex; flex-direction: column; gap: 14px; }
             .bf-tr-section { display: flex; flex-direction: column; gap: 6px; }
             .bf-tr-title { font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--bf-text); }
             .bf-tr-desc { font-size: 11px; color: var(--bf-subtext); }
