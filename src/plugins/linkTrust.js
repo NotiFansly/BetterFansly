@@ -22,39 +22,57 @@ const LinkTrust = {
     // --- 3. UI Renderer ---
     renderSettings() {
         const container = document.createElement('div');
-        container.className = 'bf-plugin-card';
+        container.className = 'bf-plugin-card bf-lt-card';
+        this.injectStyles();
 
         const isEnabled = localStorage.getItem(`bf_plugin_enabled_${this.id}`) === 'true';
         const alwaysTrust = this.alwaysEnabled();
         const domains = this.domains().join('\n');
+        const stateText = alwaysTrust ? 'always' : `${this.domains().length} domain${this.domains().length === 1 ? '' : 's'}`;
 
         container.innerHTML = `
-            <div style="flex: 1;">
-                <div style="font-weight:bold;">${this.name}</div>
-                <div style="font-size:12px; color:var(--bf-subtext); margin-bottom: 8px;">
-                    ${this.description}
+            <div style="display:flex; align-items:flex-start; gap:10px;">
+                <div style="flex:1;">
+                    <div style="font-weight:bold;">${this.name}</div>
+                    <div style="font-size:12px; color:var(--bf-subtext);">${this.description}</div>
                 </div>
-                <div style="font-size:11px; color:var(--bf-subtext); margin-top: 4px;">
-                    <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-                        <input type="checkbox" id="lt-always" ${alwaysTrust ? 'checked' : ''}> Always trust every external link
-                    </label>
-                </div>
-                <div style="font-size:11px; margin-top: 8px;">
-                    <div style="color:var(--bf-subtext); margin-bottom: 3px;">Trusted domains (one per line, subdomains match)</div>
-                    <textarea id="lt-domains" class="bf-input" rows="4" spellcheck="false"
-                        style="font-family:monospace; font-size:11px; width:100%; box-sizing:border-box; resize:vertical;">${this.escapeHtml(domains)}</textarea>
-                </div>
+                <input type="checkbox" class="bf-toggle">
             </div>
-            <input type="checkbox" class="bf-toggle">
+            <div class="bf-lt-body">
+                <details class="bf-lt-details">
+                    <summary class="bf-lt-summary">
+                        <i class="fas fa-shield"></i> Trusted Links
+                        <span class="bf-lt-state">${stateText}</span>
+                    </summary>
+                    <div class="bf-lt-config">
+                        <label>
+                            <input type="checkbox" id="lt-always" ${alwaysTrust ? 'checked' : ''}>
+                            Always trust every external link
+                        </label>
+                        <div>
+                            <div style="color:var(--bf-subtext); margin-bottom: 3px;">Trusted domains (one per line, subdomains match)</div>
+                            <textarea id="lt-domains" class="bf-input" rows="4" spellcheck="false"
+                                style="font-family:monospace; font-size:11px; width:100%; box-sizing:border-box; resize:vertical;">${this.escapeHtml(domains)}</textarea>
+                        </div>
+                    </div>
+                </details>
+            </div>
         `;
+
+        const syncState = () => {
+            const el = container.querySelector('.bf-lt-state');
+            if (el) el.textContent = this.alwaysEnabled() ? 'always' : `${this.domains().length} domain${this.domains().length === 1 ? '' : 's'}`;
+        };
 
         container.querySelector('#lt-always').onchange = (e) => {
             localStorage.setItem('bf_linktrust_always', e.target.checked ? '1' : '');
+            syncState();
             this.reapply();
         };
 
         container.querySelector('#lt-domains').onchange = (e) => {
             localStorage.setItem('bf_linktrust_domains', e.target.value);
+            syncState();
             this.reapply();
         };
 
@@ -67,6 +85,25 @@ const LinkTrust = {
         };
 
         return container;
+    },
+
+    injectStyles() {
+        if (document.getElementById('bf-linktrust-css')) return;
+        const style = document.createElement('style');
+        style.id = 'bf-linktrust-css';
+        style.textContent = `
+            .bf-lt-card { flex-direction: column; align-items: stretch; gap: 10px; }
+            .bf-lt-card > div:first-child { flex: 0 0 auto; }
+            .bf-lt-body { margin-top: 0; width: 100%; }
+            .bf-lt-details { border: 1px solid var(--bf-border); border-radius: 8px; padding: 8px 10px; background: var(--bf-card-bg); }
+            .bf-lt-summary { cursor: pointer; font-size: 12px; color: var(--bf-text); display: flex; align-items: center; gap: 8px; user-select: none; list-style: none; }
+            .bf-lt-summary::-webkit-details-marker { display: none; }
+            .bf-lt-state { margin-left: auto; font-size: 11px; color: var(--bf-subtext); }
+            .bf-lt-config { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 11px; color: var(--bf-text); }
+            .bf-lt-config label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+            .bf-lt-config .bf-input { width: 100%; min-width: 0; box-sizing: border-box; font-size: 12px; margin-top: 0; }
+        `;
+        document.head.appendChild(style);
     },
 
     escapeHtml(s) {
@@ -168,6 +205,8 @@ const LinkTrust = {
     enable() {
         if (this.isActive) return;
         this.isActive = true;
+
+        this.injectStyles();
 
         this.observer = new MutationObserver(() => {
             if (this.scanTimer) clearTimeout(this.scanTimer);
