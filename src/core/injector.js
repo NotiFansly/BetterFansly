@@ -58,7 +58,9 @@ const observer = new MutationObserver(() => {
     // 1. Main Settings Page List
     const settingsList = document.querySelector('.settings-list');
     if (settingsList && !document.getElementById('better-fansly-btn')) {
-        settingsList.appendChild(createSettingsButton('settings-page'));
+        const btn = createSettingsButton('settings-page');
+        copyScopedAttrs(btn, settingsList);
+        settingsList.appendChild(btn);
     }
 
     // 2. Desktop Top-Right Dropdown
@@ -74,9 +76,27 @@ const observer = new MutationObserver(() => {
     }
 });
 
+// Fansly scopes its styles with Angular's generated attribute selectors
+// (e.g. .settings-item[_ngcontent-ng-c2577068848]). Copy the scoping attr from
+// a native sibling onto the injected row and every child so all those rules
+// (spacing, label flex:1, chevron placement, hover) apply to ours too.
+function copyScopedAttrs(target, container) {
+    const src = container.querySelector('.settings-item, .nav-dropdown-item');
+    if (!src) return;
+    const scoped = [];
+    for (const attr of src.attributes) {
+        if (attr.name.startsWith('_ngcontent-ng-')) scoped.push([attr.name, attr.value]);
+    }
+    if (!scoped.length) return;
+    for (const el of [target, ...target.querySelectorAll('*')]) {
+        for (const [name, value] of scoped) el.setAttribute(name, value);
+    }
+}
+
 // Helper to insert before "Logout" or at the bottom
 function injectSidebarButton(container) {
     const btn = createSettingsButton('sidebar');
+    copyScopedAttrs(btn, container);
 
     // Find Logout button to insert before it (looks for the exit icon)
     const logoutBtn = container.querySelector('.fa-right-from-bracket')?.closest('.dropdown-item');
