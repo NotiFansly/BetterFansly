@@ -223,7 +223,8 @@ const Translator = {
                 color: var(--font-tint-2);
                 cursor: pointer;
                 margin-top: 5px;
-                display: inline-block;
+                display: block;
+                width: fit-content;
                 opacity: 0.7;
                 transition: 0.2s;
             }
@@ -259,7 +260,7 @@ const Translator = {
                 position: relative;
 
                 /* Make sure it hugs its content */
-                display: inline-block;
+                display: block;
                 height: auto !important;
                 min-height: 0 !important;
                 line-height: 1.2;          /* keep lines tight */
@@ -361,8 +362,7 @@ const Translator = {
             desc.classList.add('bf-tr-checked');
             if (!desc.innerText.trim()) return;
 
-            const container = desc.closest('app-post-reply, .post-reply') || desc;
-            this.createTranslateButton(container, desc.innerText, false);
+            this.createTranslateButton(desc, desc.innerText, false);
         });
     },
 
@@ -508,12 +508,12 @@ const Translator = {
             resultBox.querySelector('.bf-close-btn').onclick = (e) => {
                 e.stopPropagation();
                 resultBox.remove();
-                btnElement.style.display = 'inline-block';
+                btnElement.style.display = 'block';
             };
 
             containerElement.appendChild(resultBox);
         } else {
-            btnElement.style.display = 'inline-block';
+            btnElement.style.display = 'block';
             btnElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
             setTimeout(() => {
                 btnElement.innerHTML = `<i class="fas fa-language"></i> Translate (${this.languages[this.targetLang]})`;
