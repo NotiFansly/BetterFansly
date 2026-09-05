@@ -595,6 +595,38 @@ getSession() {
         return this.myAccountId;
     },
 
+    translateLang() {
+        return localStorage.getItem('bf_translator_lang') || 'en';
+    },
+
+    async translateText(text) {
+        const tr = this.translatorPlugin();
+        const lang = this.translateLang();
+        if (tr && typeof tr.fetchTranslation === 'function') {
+            return tr.fetchTranslation(text, lang);
+        }
+        try {
+            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(text)}`);
+            const json = await res.json();
+            return (json && json[0]) ? json[0].map(x => x[0]).join('') : null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    async translateDraft(btn) {
+        const input = this.el.querySelector('#bf-omni-input');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text || !this.scope) return;
+        if (btn && !btn.disabled) btn.disabled = true;
+        const translated = await this.translateText(text);
+        if (btn) btn.disabled = false;
+        if (!translated) return;
+        input.value = translated;
+        input.focus();
+    },
+
     async fetchRecentMessages(groupId, limit) {
         const session = this.getSession();
         if (!session) return [];
@@ -603,7 +635,10 @@ getSession() {
                 headers: { "Authorization": session.token }
             });
             const data = await res.json();
-            return (data && data.response && data.response.messages) || [];
+            const msgs = (data && data.response && data.response.messages) || [];
+            // Fansly returns newest-first; normalise to oldest→newest so chat
+            // bubbles and /reply ("latest incoming") are order-independent.
+            return msgs.slice().sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
         } catch (e) {
             return [];
         }
@@ -757,6 +792,22 @@ ensureChatStyles() {
                 text-align: center; color: var(--bf-subtext); font-style: italic;
                 font-size: 12px; padding: 16px;
             }
+            .bf-omni-translate {
+                display: block; width: fit-content; margin-top: 3px;
+                font-size: 11px; color: var(--bf-subtext); cursor: pointer; opacity: .6;
+            }
+            .bf-omni-translate:hover { color: var(--bf-accent); opacity: 1; }
+            .bf-omni-tr {
+                margin-top: 4px; padding: 4px 8px; font-size: 12px; line-height: 1.35;
+                background: var(--bf-surface-0); border-left: 2px solid var(--bf-accent);
+                border-radius: 4px; color: var(--bf-text);
+            }
+            .bf-omni-tr-btn {
+                background: var(--bf-surface-0); border: none; color: var(--bf-subtext);
+                width: 36px; height: 36px; border-radius: 8px; cursor: pointer; flex-shrink: 0;
+            }
+            .bf-omni-tr-btn:hover { color: var(--bf-accent); }
+            .bf-omni-tr-btn:disabled { opacity: .5; cursor: default; }
         `;
         document.head.appendChild(style);
     },
@@ -782,6 +833,8 @@ ensureChatStyles() {
         if (closeBtn) closeBtn.onclick = (e) => { e.stopPropagation(); this.close(); };
         const sendBtn = modal.querySelector('#bf-omni-send');
         if (sendBtn) sendBtn.onclick = () => this.sendCurrentChat();
+        const trBtn = modal.querySelector('#bf-omni-tr-btn');
+        if (trBtn) trBtn.onclick = () => this.translateDraft(trBtn);
 
         const input = modal.querySelector('#bf-omni-input');
         setTimeout(() => input.focus(), 10);
@@ -815,6 +868,7 @@ ensureChatStyles() {
                 <div id="bf-omni-replychip" class="bf-omni-replychip"></div>
                 <div class="bf-omni-composer">
                     <input type="text" id="bf-omni-input" placeholder="Message ${who || 'this chat'}…" autocomplete="off">
+                    <button class="bf-omni-tr-btn" id="bf-omni-tr-btn" title="Translate input"><i class="fas fa-language"></i></button>
                     <button class="bf-omni-send" id="bf-omni-send" title="Send"><i class="fas fa-paper-plane"></i></button>
                 </div>
                 <div class="bf-omni-hint">Enter = send · click a bubble to reply · Esc = back</div>
@@ -883,6 +937,26 @@ ensureChatStyles() {
                 e.preventDefault();
                 this.toggleReply(id, row);
             };
+        }
+
+        // Incoming text bubbles get a compact translate icon (toggle the inline result)
+        if (!mine && text) {
+            const tr = document.createElement('i');
+            tr.className = 'fas fa-language bf-omni-translate';
+            tr.title = 'Translate to ' + this.translateLang();
+            tr.onclick = async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                let out = row.querySelector('.bf-omni-tr');
+                if (out) { out.remove(); return; }
+                out = document.createElement('div');
+                out.className = 'bf-omni-tr';
+                out.textContent = '…';
+                row.appendChild(out);
+                const translated = await this.translateText(text);
+                out.textContent = translated || 'Translation failed';
+            };
+            row.appendChild(tr);
         }
 
         list.appendChild(row);
