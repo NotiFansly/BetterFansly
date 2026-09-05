@@ -120,6 +120,22 @@ const PinnedMessages = {
             .bf-pin-unpin { font-size: 13px; color: var(--bf-subtext); cursor: pointer; opacity: 0; transition: opacity .15s; }
             .bf-pin-row:hover .bf-pin-unpin { opacity: 1; }
             .bf-pin-unpin:hover { color: var(--bf-accent); }
+            .bf-pin-markread {
+                font-size: 13px; color: var(--bf-subtext); cursor: pointer;
+                opacity: 0; transition: opacity .15s;
+            }
+            .bf-pin-row:hover .bf-pin-markread { opacity: 1; }
+            .bf-pin-markread:hover { color: #4ade80; }
+            .bf-pin-row-actions {
+                display: flex; align-items: center; gap: 10px;
+            }
+            .bf-pin-markall {
+                font-size: 12px; color: var(--bf-accent); cursor: pointer;
+                margin-left: auto; opacity: .85;
+                display: flex; align-items: center; gap: 4px;
+            }
+            .bf-pin-markall:hover { opacity: 1; }
+            .bf-pin-markall.disabled { opacity: .3; pointer-events: none; }
         `;
         document.head.appendChild(style);
     },
@@ -536,12 +552,13 @@ const PinnedMessages = {
         }
     },
 
-    // Paginate message/unread and count readAt===null interactions per pinned group.
-    // Stops once a page contains no entries for any pinned group (their unread is exhausted).
-    // Returns a Map<groupId, count> capped at 99 (null on failure); does NOT mutate pins.
-    async fetchUnreadCounts(pins, session) {
-        const counts = new Map(pins.map(p => [String(p.groupId), 0]));
-        const wanted = new Set(counts.keys());
+    // Paginate message/unread and collect the readAt===null interactions that
+    // belong to any wanted group. Stops once a page contains no entries for any
+    // wanted group (their unread is exhausted). Returns [{groupId, messageId}]
+    // or null on failure. Does NOT mutate pins.
+    async _pagesUnread(session, pins) {
+        const wanted = new Set((pins || this.getPins()).map(p => String(p.groupId)));
+        const hits = [];
         let before = null;
         const pageSize = 100;
 
@@ -558,19 +575,105 @@ const PinnedMessages = {
 
             let hit = false;
             interactions.forEach(it => {
-                const gid = String(it.groupId);
-                if (wanted.has(gid) && it.readAt === null) {
-                    counts.set(gid, Math.min(counts.get(gid) + 1, 99));
+                if (wanted.has(String(it.groupId)) && it.readAt === null) {
+                    hits.push({ groupId: String(it.groupId), messageId: it.messageId });
                     hit = true;
                 }
             });
 
-            // Stop when we've passed all pinned groups' unread entries
+            // Stop when we've passed all wanted groups' unread entries
             if (!hit) break;
             before = interactions[interactions.length - 1].messageId;
         }
 
+        return hits;
+    },
+
+    // Count unread per pinned group. Returns a Map<groupId, count> capped at 99
+    // (null on failure); does NOT mutate pins.
+    async fetchUnreadCounts(pins, session) {
+        const counts = new Map(pins.map(p => [String(p.groupId), 0]));
+        const hits = await this._pagesUnread(session, pins);
+        if (!hits) return null;
+        hits.forEach(h => counts.set(h.groupId, Math.min(counts.get(h.groupId) + 1, 99)));
         return counts;
+    },
+
+    // Collect unread message ids per pinned group for marking-as-read.
+    // Returns a Map<groupId, string[]> (null on failure); does NOT mutate pins.
+    async fetchUnreadIds(pins, session) {
+        const byGroup = new Map(pins.map(p => [String(p.groupId), []]));
+        const hits = await this._pagesUnread(session, pins);
+        if (!hits) return null;
+        hits.forEach(h => {
+            if (byGroup.has(h.groupId)) byGroup.get(h.groupId).push(h.messageId);
+        });
+        return byGroup;
+    },
+
+    // Ack a batch of message ids as read via the Fansly API.
+    async ackMessages(messageIds) {
+        const session = this.getSession();
+        if (!session) return false;
+        try {
+            const res = await this.fetchWithTimeout('https://apiv3.fansly.com/api/v1/message/ack?ngsw-bypass=true', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: session.token },
+                body: JSON.stringify({ messageIds: messageIds || [], type: 2 })
+            });
+            if (!res.ok) return false;
+            const json = await res.json();
+            return !!(json && json.success);
+        } catch (e) {
+            return false;
+        }
+    },
+
+    async markGroupRead(groupId) {
+        groupId = String(groupId);
+        const session = this.getSession();
+        if (!session) return false;
+        const pins = this.getPins().filter(p => String(p.groupId) === groupId);
+        if (!pins.length) return false;
+
+        const byGroup = await this.fetchUnreadIds(pins, session);
+        if (byGroup === null) return false;
+        const ids = byGroup.get(groupId) || [];
+        let ok = true;
+        // No unread ids is still a success: it just means the badge is stale.
+        if (ids.length) ok = await this.ackMessages(ids);
+        if (ok) await this.clearUnread([groupId]);
+        return ok;
+    },
+
+    async markAllRead() {
+        const session = this.getSession();
+        if (!session) return false;
+        const pins = this.getPins();
+        if (!pins.length) return false;
+
+        const byGroup = await this.fetchUnreadIds(pins, session);
+        if (byGroup === null) return false;
+        const ids = [];
+        pins.forEach(p => {
+            const g = String(p.groupId);
+            if (byGroup.has(g)) ids.push(...byGroup.get(g));
+        });
+        let ok = true;
+        if (ids.length) ok = await this.ackMessages(ids);
+        if (ok) await this.clearUnread(pins.map(p => String(p.groupId)));
+        return ok;
+    },
+
+    // Clear the stored unread badge for the given group ids and re-render.
+    async clearUnread(groupIds) {
+        const set = new Set(groupIds.map(String));
+        await this.updatePins(pins => {
+            pins.forEach(p => { if (set.has(String(p.groupId))) delete p.unread; });
+        });
+        this.lastSig = null;
+        this.renderPinnedSection();
+        return true;
     },
 
     formatUnread(n) {
@@ -686,11 +789,22 @@ const PinnedMessages = {
             freshParent.insertBefore(section, messageList);
         }
 
+        const anyUnread = pins.some(p => this.formatUnread(p.unread) !== '');
         section.innerHTML = `
             <div class="bf-pinned-header">
                 <i class="fas fa-thumbtack"></i> Pinned
+                <span style="flex:1;"></span>
+                <span class="bf-pin-markall${anyUnread ? '' : ' disabled'}" title="Mark all as read">
+                    <i class="fas fa-check-double"></i> Mark all read
+                </span>
             </div>
         `;
+        const markAll = section.querySelector('.bf-pin-markall');
+        if (markAll) markAll.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.markAllRead();
+        };
 
         pins.forEach(pin => {
             const gid = String(pin.groupId);
@@ -721,7 +835,10 @@ const PinnedMessages = {
                 <div class="bf-pin-meta">
                     <div class="bf-pin-time">${this.escapeHtml(time)}</div>
                     ${badgeHtml}
-                    <div class="bf-pin-unpin" title="Unpin"><i class="fas fa-thumbtack"></i></div>
+                    <div class="bf-pin-row-actions">
+                        <div class="bf-pin-markread" title="Mark as read"><i class="fas fa-check"></i></div>
+                        <div class="bf-pin-unpin" title="Unpin"><i class="fas fa-thumbtack"></i></div>
+                    </div>
                 </div>
             `;
 
@@ -730,6 +847,12 @@ const PinnedMessages = {
                     e.preventDefault();
                     e.stopPropagation();
                     this.togglePin(gid);
+                    return;
+                }
+                if (e.target.closest('.bf-pin-markread')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.markGroupRead(gid);
                     return;
                 }
                 e.preventDefault();
