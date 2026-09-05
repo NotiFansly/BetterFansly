@@ -4,7 +4,7 @@ const Translator = {
     // --- 1. Registry Metadata ---
     id: 'translator',
     name: 'Chat Translator',
-    description: 'Native translation for DMs, Feed posts, and the Input bar.',
+    description: 'Native translation for DMs, Feed posts, post replies, Stream chat, and the Input bar.',
     defaultEnabled: false,
 
     // --- 2. State Variables ---
@@ -162,11 +162,10 @@ const Translator = {
     setTargetLang(newLang) {
         this.targetLang = newLang;
 
-        // Update the Tooltip on the Input Bar
-        const inputBtn = document.querySelector('.bf-translated-input-btn');
-        if (inputBtn) {
-            inputBtn.title = `Translate input to ${this.languages[this.targetLang]}`;
-        }
+        // Update the Tooltip on the Input Bar Buttons
+        document.querySelectorAll('.bf-translated-input-btn').forEach(btn => {
+            btn.title = `Translate input to ${this.languages[this.targetLang]}`;
+        });
 
         // Update all existing "Translate" buttons on the page
         document.querySelectorAll('.bf-translate-btn').forEach(btn => {
@@ -200,6 +199,7 @@ const Translator = {
             if (timeout) clearTimeout(timeout);
             timeout = setTimeout(() => {
                 this.scanFeed();
+                this.scanReplies();
                 this.scanMessages();
                 this.injectInputButton();
             }, 500);
@@ -208,6 +208,7 @@ const Translator = {
         this.observer.observe(document.body, { childList: true, subtree: true });
 
         this.scanFeed();
+        this.scanReplies();
         this.scanMessages();
         this.injectInputButton();
     },
@@ -230,6 +231,18 @@ const Translator = {
                 color: var(--blue-1);
                 opacity: 1;
                 text-decoration: underline;
+            }
+
+            /* Compact icon-only button for stream chat */
+            .bf-translate-btn-compact {
+                display: block;
+                width: max-content;
+                margin-top: 2px;
+                font-size: 12px;
+                opacity: 0.6;
+            }
+            .bf-translate-btn-compact:hover {
+                text-decoration: none;
             }
 
             /* --- Result Box Styling --- */
@@ -305,6 +318,10 @@ const Translator = {
                 display: inline-block;
                 animation: spin 1s linear infinite;
             }
+            .bf-translated-input-btn {
+                display: flex;
+                align-items: center;
+            }
             .bf-translated-input-btn svg {
                 fill: currentColor;
                 width: 18px;
@@ -328,26 +345,67 @@ const Translator = {
         });
     },
 
-    // --- 2. Chat Messages ---
-    scanMessages() {
-        const messages = document.querySelectorAll('app-group-message .message-text:not(.bf-tr-checked)');
+    // --- 1.5 Post Replies ---
+    scanReplies() {
+        const selectors = [
+            'app-post-reply .post-reply-description',
+            'app-post-reply .feed-item-description',
+            'app-post-reply .reply-description',
+            '.post-reply .post-reply-description',
+            '.post-reply .feed-item-description',
+            '.post-reply .reply-description'
+        ];
 
-        messages.forEach(msg => {
-            msg.classList.add('bf-tr-checked');
-            if (!msg.innerText.trim()) return;
+        document.querySelectorAll(selectors.join(', ')).forEach(desc => {
+            if (desc.classList.contains('bf-tr-checked')) return;
+            desc.classList.add('bf-tr-checked');
+            if (!desc.innerText.trim()) return;
 
-            const parent = msg.closest('.message');
-            const container = parent || msg;
-
-            this.createTranslateButton(container, msg.innerText);
+            const container = desc.closest('app-post-reply, .post-reply') || desc;
+            this.createTranslateButton(container, desc.innerText, false);
         });
     },
 
+    // --- 2. Chat Messages (DMs + Stream Chat) ---
+    scanMessages() {
+        const selectors = [
+            'app-group-message .message-text',
+            'app-chat-message .message-text',
+            '.chat-message .message-text',
+            'app-chat-room .message-text',
+            '.chat-room .message-text',
+            '.chat-messages .message-text'
+        ];
+
+        document.querySelectorAll(selectors.join(', ')).forEach(msg => {
+            if (msg.classList.contains('bf-tr-checked')) return;
+            msg.classList.add('bf-tr-checked');
+            if (!msg.innerText.trim()) return;
+
+            const parent = msg.closest('.message, app-group-message, app-chat-message, .chat-message, .message-container');
+            const container = parent || msg;
+            const compact = this.isStreamChat(msg);
+
+            this.createTranslateButton(container, msg.innerText, compact);
+        });
+    },
+
+    // Compact icon-only mode for live stream chat
+    isStreamChat(el) {
+        return !!(
+            (window.location && window.location.pathname.startsWith('/live/'))
+            || el.closest('app-chat-room, .chat-room, [data-chat-room], .chat-messages')
+        );
+    },
+
     // --- Helper: Create the Button ---
-    createTranslateButton(container, textToTranslate) {
+    createTranslateButton(container, textToTranslate, compact) {
         const btn = document.createElement('div');
-        btn.className = 'bf-translate-btn';
-        btn.innerHTML = `<i class="fas fa-language"></i> Translate (${this.languages[this.targetLang]})`;
+        btn.className = 'bf-translate-btn' + (compact ? ' bf-translate-btn-compact' : '');
+        btn.innerHTML = compact
+            ? `<i class="fas fa-language"></i>`
+            : `<i class="fas fa-language"></i> Translate (${this.languages[this.targetLang]})`;
+        if (compact) btn.title = `Translate to ${this.languages[this.targetLang]}`;
 
         btn.onclick = (e) => {
             e.stopPropagation();
@@ -357,44 +415,73 @@ const Translator = {
         container.appendChild(btn);
     },
 
-    // --- 3. Chat Input ---
+    // --- 3. Chat Input (optional translate-what-you-type buttons) ---
     injectInputButton() {
-        const toolbar = document.querySelector('app-group-message-input .actions');
-        if (!toolbar || toolbar.querySelector('.bf-translated-input-btn')) return;
+        // 1. DMs — toolbar next to the input
+        const dmToolbar = document.querySelector('app-group-message-input .actions');
+        if (dmToolbar && !dmToolbar.querySelector('.bf-translated-input-btn')) {
+            const btn = this.makeInputButton('app-group-message-input');
+            btn.classList.add('margin-right-2');
+            dmToolbar.insertBefore(btn, dmToolbar.firstChild);
+        }
 
+        // 2. Reply/post composers (inline + "Reply to Post" modal) — footer row
+        const postToolbars = document.querySelectorAll('app-post-creation .new-post-footer');
+        postToolbars.forEach(tb => {
+            if (tb.querySelector('.bf-translated-input-btn')) return;
+            const btn = this.makeInputButton('app-post-creation');
+            btn.classList.add('margin-right-2');
+            tb.insertBefore(btn, tb.firstChild);
+        });
+
+        // 3. Stream chat — action row before the send button
+        const streamRow = document.querySelector('.chat-footer .flex-row.flex-align-center');
+        if (streamRow && !streamRow.querySelector('.bf-translated-input-btn')) {
+            const btn = this.makeInputButton('.chat-footer');
+            btn.classList.add('margin-left-text');
+            const sendBtn = streamRow.querySelector('.send-button');
+            if (sendBtn) streamRow.insertBefore(btn, sendBtn);
+            else streamRow.appendChild(btn);
+        }
+    },
+
+    makeInputButton(rootSelector) {
+        const self = this;
         const container = document.createElement('div');
-        container.className = 'input-addon dark-blue-1 blue-1-hover-only pointer margin-right-2 bf-translated-input-btn';
+        container.className = 'input-addon dark-blue-1 blue-1-hover-only pointer bf-translated-input-btn';
         container.title = `Translate input to ${this.languages[this.targetLang]}`;
 
-        container.innerHTML = `
+        const svg = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="hover-effect">
                 <path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
             </svg>
         `;
+        container.innerHTML = svg;
 
         container.onclick = async () => {
-            const textarea = document.querySelector('app-group-message-input textarea');
-            if (!textarea || !textarea.value.trim()) return;
+            const root = container.closest(rootSelector);
+            if (!root) return;
+
+            const target = root.querySelector('.material-input textarea')
+                || root.querySelector('textarea.message-input')
+                || root.querySelector('textarea');
+            if (!target || !target.value.trim()) return;
 
             container.innerHTML = `<i class="fa-fw fas fa-spinner bf-spinner"></i>`;
 
-            const originalText = textarea.value;
-            const translated = await this.fetchTranslation(originalText, this.targetLang);
+            const originalText = target.value;
+            const translated = await self.fetchTranslation(originalText, self.targetLang);
 
             if (translated) {
-                textarea.value = translated;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                target.value = translated;
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+                target.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            container.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="hover-effect">
-                    <path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
-                </svg>
-            `;
+            container.innerHTML = svg;
         };
 
-        toolbar.insertBefore(container, toolbar.firstChild);
+        return container;
     },
 
     // --- Helper: Execute Translation UI ---
