@@ -48,6 +48,7 @@
                 "src/plugins/mutualIndicator.js",
                 "src/plugins/spendingTracker.js",
                 "src/plugins/keywordMuter.js",
+                "src/plugins/linkTrust.js",
                 "src/plugins/ghostMode.js",
                 "src/plugins/translator.js",
                 "src/plugins/oneko.js",
