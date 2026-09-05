@@ -8,6 +8,7 @@ const Omnibar = {
     el: null,
     boundHandler: null,
     searchTimer: null, // Debounce timer
+    pinnedItems: [],   // Loaded from the Pinned Conversations plugin's storage
 
     // Default Keybind: Alt + K
     keybind: JSON.parse(localStorage.getItem('bf_omnibar_keybind') || '{"key":"k","ctrl":false,"alt":true,"shift":false,"meta":false}'),
@@ -66,6 +67,7 @@ const Omnibar = {
 
         // Scrape sidebar for local cache initially
         this.scrapeLocalUsers();
+        this.loadPins();
 
         this.el = document.createElement('div');
         this.el.id = 'bf-omnibar-overlay';
@@ -100,7 +102,7 @@ const Omnibar = {
         input.oninput = (e) => this.handleInput(e.target.value);
         input.onkeydown = (e) => this.handleNav(e);
 
-        this.renderList(this.staticItems); // Show defaults
+        this.renderList(this.buildDefaultGroups()); // Show defaults + pinned chats
     },
 
     close() {
@@ -127,12 +129,58 @@ const Omnibar = {
 
         // 2. Local Navigation Mode
         const q = query.toLowerCase();
-        const matches = [
+        const navItems = [
             ...this.staticItems.filter(i => i.name.toLowerCase().includes(q)),
             ...this.localUsers.filter(i => i.name.toLowerCase().includes(q) || i.handle.toLowerCase().includes(q))
-        ];
+        ].slice(0, 10);
 
-        this.renderList(matches.slice(0, 10), matches.length === 0 ? 'No commands found.' : null);
+        const pinItems = this.searchPins(q).slice(0, 10);
+
+        const groups = [{ title: null, items: navItems }];
+        if (pinItems.length) groups.push({ title: 'Pinned', items: pinItems });
+
+        const total = navItems.length + pinItems.length;
+        this.renderList(groups, total === 0 ? 'No commands found.' : null);
+    },
+
+    // Load pinned conversations from the Pinned Conversations plugin's storage.
+    // Pins persist in localStorage even when that plugin is disabled, so this
+    // works standalone and needs no cross-plugin reference.
+    loadPins() {
+        this.pinnedItems = [];
+        try {
+            const pins = JSON.parse(localStorage.getItem('bf_pinned_conversations') || '[]');
+            if (!Array.isArray(pins)) return;
+            this.pinnedItems = pins
+                .filter(p => p && p.groupId)
+                .map(p => ({
+                    name: p.displayName || p.username || String(p.groupId),
+                    handle: p.username || '',
+                    url: `/messages/${p.groupId}`,
+                    img: p.avatar || '',
+                    icon: 'fa-thumbtack',
+                    type: 'pinned',
+                    preview: p.preview || ''
+                }));
+        } catch (e) {
+            this.pinnedItems = [];
+        }
+    },
+
+    // Searches pinned chats by display name or @handle (never preview text).
+    searchPins(q) {
+        return this.pinnedItems.filter(i =>
+            i.name.toLowerCase().includes(q) || (i.handle || '').toLowerCase().includes(q)
+        );
+    },
+
+    // Default result groups: commands/users first, then a sectioned Pinned list.
+    buildDefaultGroups() {
+        const groups = [{ title: null, items: this.staticItems.slice(0, 10) }];
+        if (this.pinnedItems && this.pinnedItems.length) {
+            groups.push({ title: 'Pinned', items: this.pinnedItems.slice(0, 10) });
+        }
+        return groups;
     },
 
     // Scrape sidebar for instant access to followed users without API calls
@@ -188,7 +236,7 @@ const Omnibar = {
                         type: 'api_user'
                     };
                 });
-                this.renderList(results, results.length === 0 ? 'No users found.' : null);
+                this.renderList([{ title: null, items: results }], results.length === 0 ? 'No users found.' : null);
             }
         } catch (e) {
             console.error(e);
@@ -196,9 +244,9 @@ const Omnibar = {
         }
     },
 
-    // --- Rendering ---
+// --- Rendering ---
 
-    renderList(items, message = null) {
+renderList(groups, message = null) {
         const list = this.el.querySelector('#bf-omni-results');
         list.innerHTML = '';
 
@@ -207,47 +255,75 @@ const Omnibar = {
             return;
         }
 
-        items.forEach((item, index) => {
-            const row = document.createElement('div');
-            row.className = 'bf-omni-item';
-            row.style.cssText = `
-                padding: 12px 15px; cursor: pointer; display: flex; align-items: center; 
-                border-left: 3px solid transparent; color: var(--bf-text);
-            `;
+        let firstSelectable = null;
 
-            // Avatar / Icon Logic
-            let iconHtml = '';
-            if (item.img) {
-                iconHtml = `<img src="${item.img}" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 15px; object-fit: cover;">`;
-            } else {
-                iconHtml = `<i class="fas ${item.icon}" style="width: 24px; margin-right: 15px; text-align:center; color: var(--bf-subtext);"></i>`;
+        groups.forEach(group => {
+            const items = (group && group.items) || [];
+            if (!items.length) return;
+
+            // Section header (e.g. "Pinned") is NOT a .bf-omni-item, so it's
+            // excluded from selection/highlighting and keyboard navigation.
+            if (group.title) {
+                const header = document.createElement('div');
+                header.className = 'bf-omni-header';
+                header.style.cssText = 'padding: 10px 15px 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: .5px; color: var(--bf-subtext); display: flex; align-items: center; gap: 6px;';
+                header.innerHTML = `<i class="fas fa-thumbtack" style="font-size: 9px; color: var(--bf-accent);"></i> ${this.escapeHtml(group.title)}`;
+                list.appendChild(header);
             }
 
-            // Sub-label logic
-            let metaHtml = '';
-            if (item.type === 'creator' || item.type === 'api_user') {
-                metaHtml = `<span style="margin-left:auto; font-size:11px; opacity:0.5; background:var(--bf-surface-0); padding:2px 6px; border-radius:4px;">@${item.handle}</span>`;
-            } else if (item.type === 'action') {
-                metaHtml = `<span style="margin-left:auto; font-size:10px; color:var(--bf-accent);">COMMAND</span>`;
-            }
+            items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'bf-omni-item';
+                row.style.cssText = `
+                    padding: 12px 15px; cursor: pointer; display: flex; align-items: center; 
+                    border-left: 3px solid transparent; color: var(--bf-text);
+                `;
 
-            row.innerHTML = `
-                ${iconHtml}
-                <span style="font-weight:500;">${item.name}</span>
-                ${metaHtml}
-            `;
+                // Avatar / Icon Logic
+                let iconHtml = '';
+                if (item.img) {
+                    iconHtml = `<img src="${this.escapeHtml(item.img)}" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 15px; object-fit: cover;">`;
+                } else {
+                    iconHtml = `<i class="fas ${item.icon}" style="width: 24px; margin-right: 15px; text-align:center; color: var(--bf-subtext);"></i>`;
+                }
 
-            row.onmouseover = () => {
-                this.clearSelection(list);
-                this.selectRow(row);
-            };
+                // Sub-label logic
+                let metaHtml = '';
+                if (item.type === 'creator' || item.type === 'api_user') {
+                    metaHtml = `<span style="margin-left:auto; font-size:11px; opacity:0.5; background:var(--bf-surface-0); padding:2px 6px; border-radius:4px;">@${this.escapeHtml(item.handle)}</span>`;
+                } else if (item.type === 'action') {
+                    metaHtml = `<span style="margin-left:auto; font-size:10px; color:var(--bf-accent);">COMMAND</span>`;
+                } else if (item.type === 'pinned') {
+                    const preview = item.preview
+                        ? `<span style="max-width:180px; font-size:11px; opacity:0.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.escapeHtml(item.preview)}</span>`
+                        : '';
+                    metaHtml = `<span style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:10px; color:var(--bf-accent); font-weight:bold;">PINNED</span>
+                        ${preview}
+                    </span>`;
+                }
 
-            row.onclick = () => this.execute(item);
+                row.innerHTML = `
+                    ${iconHtml}
+                    <span style="font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.escapeHtml(item.name)}</span>
+                    ${metaHtml}
+                `;
 
-            list.appendChild(row);
+                row.onmouseover = () => {
+                    this.clearSelection(list);
+                    this.selectRow(row);
+                };
 
-            if (index === 0) this.selectRow(row);
+                row.onclick = () => this.execute(item);
+
+                list.appendChild(row);
+
+                if (!firstSelectable) firstSelectable = row;
+            });
         });
+
+        // Auto-highlight the first selectable row
+        if (firstSelectable) this.selectRow(firstSelectable);
     },
 
     selectRow(row) {
@@ -266,24 +342,29 @@ const Omnibar = {
 
     handleNav(e) {
         const list = this.el.querySelector('#bf-omni-results');
-        const selected = list.querySelector('[data-selected="true"]');
+        const items = Array.from(list.querySelectorAll('.bf-omni-item'));
+        if (!items.length) return;
+
+        const selectedIdx = items.findIndex(r => r.dataset.selected === 'true');
 
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
-            if (!selected) return;
-
             let next;
-            if (e.key === 'ArrowDown') next = selected.nextElementSibling || list.firstElementChild;
-            else next = selected.previousElementSibling || list.lastElementChild;
+            if (selectedIdx < 0) {
+                next = e.key === 'ArrowDown' ? 0 : items.length - 1;
+            } else {
+                const dir = e.key === 'ArrowDown' ? 1 : -1;
+                next = (selectedIdx + dir + items.length) % items.length;
+            }
 
             this.clearSelection(list);
-            this.selectRow(next);
-            next.scrollIntoView({ block: 'nearest' });
+            this.selectRow(items[next]);
+            items[next].scrollIntoView({ block: 'nearest' });
         }
 
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (selected) selected.click();
+            if (selectedIdx >= 0) items[selectedIdx].click();
         }
 
         if (e.key === 'Escape') this.close();
@@ -311,6 +392,12 @@ const Omnibar = {
         // 2. Dispatch 'popstate' event to trick Angular into updating the view
         // Angular's PlatformLocation listens for this event.
         window.dispatchEvent(new PopStateEvent('popstate'));
+    },
+
+    escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
     },
 
     // --- Settings UI with Recorder ---
