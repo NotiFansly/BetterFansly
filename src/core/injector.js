@@ -23,33 +23,27 @@ function createSettingsButton(locationType) {
     // ID distinguishes where the button is so we don't duplicate it
     div.id = locationType === 'sidebar' ? 'better-fansly-btn-sidebar' : 'better-fansly-btn';
 
-    // Classes based on location
-    div.className = locationType === 'sidebar' ? 'dropdown-item' : 'settings-item';
-
-    // CSS: Force Flexbox to align Logo and Text on the same center line
-    div.style.cssText = 'display: flex; align-items: center; width: 100%; cursor: pointer;';
+    // Classes based on location — mirror the native rows so Fansly's own CSS
+    // drives layout, spacing, hover, and cursor (no inline style overrides).
+    if (locationType === 'sidebar') {
+        div.className = 'nav-dropdown-item dropdown-item';
+        div.dataset.menuItem = 'better-fansly';
+    } else {
+        div.className = 'settings-item';
+    }
 
     const logoUrl = chrome.runtime.getURL('icons/bf-logo.png');
+    const logo = `<img class="bf-settings-logo" src="${logoUrl}" alt="BF">`;
 
-    // Logo Styling:
-    // 1. Width 20px matches FontAwesome icons
-    // 2. Scale 1.5 zooms in to hide transparent whitespace
-    // 3. Margin adjusts spacing to match text
-    const imgStyle = 'width: 20px; height: 20px; margin-right: 12px; object-fit: contain; transform: scale(1.5);';
-
-    // HTML Structure
-    // Sidebar: [Logo] [Text]  (No arrow)
-    // Settings Page: [Logo] [Text] [Spacer] [Arrow]
-    div.innerHTML = `
-        <img src="${logoUrl}" style="${imgStyle}" alt="BF">
-        <span>BetterFansly</span>
-        
-        ${locationType === 'settings-page' ? `
-            <div style="flex: 1;"></div>
-            <div class="flex-0 margin-right-1 margin-left-1">
-                <i class="fa-light fa-chevron-right"></i>
-            </div>
-        ` : ''}
+    // HTML Structure — matches native markup:
+    //   Nav/sidebar: [Logo] Text
+    //   Settings page: [Icon slot] Label [Chevron slot]
+    div.innerHTML = locationType === 'sidebar'
+        ? `${logo}<span>BetterFansly</span>`
+        : `
+        <app-icon class="settings-item-icon">${logo}</app-icon>
+        <div class="settings-item-label"><span>BetterFansly</span></div>
+        <app-icon class="settings-item-chevron"><i class="fa-chevron-right fa-fw fasl"></i></app-icon>
     `;
 
     div.onclick = (e) => {
